@@ -163,10 +163,16 @@ def make_graph(argv):
 	# plt.show()
 	# return fig
 
+def handle_exit_click(event):
+	window.destroy()
+
 def handle_run_click(event):
-	# time.sleep(5)
 	# lbl_status_value.delete("1.0",tk.END)
+	# window.update()
+	
 	status_text.set('Processing')
+	window.update_idletasks()
+	# time.sleep(1)
 	approx = approx_option.get()
 	if approx == "Central Force":
 		approx = 'central'
@@ -185,8 +191,12 @@ def handle_run_click(event):
 	data,nombre,total_iter,radii = make_graph(['approx={}'.format(approx),'force={}'.format(force), \
 		'num_planets={}'.format(bodies)])
 
-	fig = plt.figure()
-	ax = p3.Axes3D(fig)
+	# fig = plt.figure()
+	try:
+		ax.clear()
+		fig.legend([])
+	except:
+		ax = p3.Axes3D(fig)
 	# data = get_data()
 	# Creating "iterations" line objects.
 	# NOTE: Can't pass empty arrays into 3d version of plot()
@@ -221,11 +231,17 @@ def handle_run_click(event):
 	line_ani = animation.FuncAnimation(fig, update_lines, total_iter, fargs=(data, lines),
 										blit=False, interval=1)
 
-	fig.canvas.show()
-	# graph_canvas = FigureCanvasTkAgg(fig, master=frm_graph)
-	# graph_canvas.get_tk_widget().pack()
+	try: 
+		graph_canvas.get_tk_widget().pack_forget()
+	except: 
+		pass
 
+	fig.canvas.draw()
+	# graph_canvas = FigureCanvasTkAgg(fig, master=frm_graph)
+	graph_canvas.get_tk_widget().pack()
+	# time.sleep(5)
 	status_text.set('Idle')
+	# window.update()
 
 window = tk.Tk()
 
@@ -237,9 +253,14 @@ frm_graph = tk.Frame(master=window, height=height*0.85, bg="red", \
 	relief=tk.FLAT, borderwidth=5)
 frm_graph.pack(fill=tk.X)
 
-frm_input = tk.Frame(master=window, height=height*0.15, width=width/2, \
+frm_input = tk.Frame(master=window, height=height*0.15, \
 	bg="yellow", relief=tk.RIDGE, borderwidth=5)
 frm_input.pack(fill=tk.X)
+
+
+fig = plt.Figure(figsize=(7,5))
+graph_canvas = FigureCanvasTkAgg(fig, master=frm_graph)
+graph_canvas.get_tk_widget().pack()
 
 
 forces = ["Gravity","Electromagnetic","Both"]
@@ -264,6 +285,7 @@ ent_force_input.grid(row=0,column=3)
 
 
 
+
 lbl_num_body_input = tk.Label(master=frm_input, text='Bodies: ')
 lbl_num_body_input.grid(row=0,column=4)
 num_bodies = tk.Entry(master=frm_input)
@@ -272,6 +294,8 @@ num_bodies.grid(row=0,column=5)
 
 btn_run = tk.Button(master=frm_input, text='Run Sim')
 btn_run.bind("<Button-1>", handle_run_click)
+window.bind("<Return>", handle_run_click)
+
 btn_run.grid(row=0,column=6)
 
 
@@ -281,6 +305,20 @@ lbl_status = tk.Label(master=frm_input,text='Status: ')
 lbl_status.grid(row=0,column=7)
 lbl_status_value = tk.Label(master=frm_input,textvariable=status_text)
 lbl_status_value.grid(row=0,column=8)
+
+
+
+
+lbl_blank = tk.Label(master=frm_input, text='          ')
+lbl_blank.grid(row=0,column=9)
+
+
+
+
+btn_exit = tk.Button(master=frm_input, text='Exit Sim')
+btn_exit.bind("<Button-1>", handle_exit_click)
+btn_exit.grid(row=0,column=10)
+
 
 
 
