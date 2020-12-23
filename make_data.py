@@ -2,6 +2,8 @@ import numpy as np
 import data as d
 import sys
 
+def make_data(data,other_data):
+	return
 
 def make_data(force,approx,bodies):
 	if approx == 'central':
