@@ -46,22 +46,21 @@ max_solar_system_bodies = 9
 # 		data_set[first:first+rest,:,:] = self.data
 
 
-def make_data(force,approx,dt,total_time,bodies=-1,data=[],other_data=[]):
+def make_data(force,approx,dt,total_time,names=[],bodies=-1,data=[],other_data=[]):
 	#use if planet_data_or_not_text.get() == 'Input Body Variables'
+	if approx == 'central':
+		app = True
+	else:
+		app = False
 	if len(data) != 0 and len(other_data) != 0:
 		initial_conditions = np.array(data)
 		other_info = np.array(other_data)
 
-		sim = numerics(initial_conditions, other_info, force,central_force_=app,init_dt_=dt,total_time_=total_time)
-		# sim.write_datas()
+		sim = numerics(initial_conditions,other_info,force,names_=names,central_force_=app,init_dt_=dt,total_time_=total_time)
 		sim.play()
 		return
 	#use if planet_data_or_not_text.get() != 'Input Body Variables'
 	else:
-		if approx == 'central':
-			app = True
-		else:
-			app = False
 		if isinstance(bodies,int):
 			if bodies > 0:
 				list_bodies = np.arange(0,bodies)
@@ -77,8 +76,6 @@ def make_data(force,approx,dt,total_time,bodies=-1,data=[],other_data=[]):
 		initial_conditions = np.zeros((list_bodies.shape[0],2,3))
 		#other_info[{mass}{radius},body]
 		other_info = np.zeros((2,list_bodies.shape[0]))
-
-		names = []
 
 		# velocities in au/day
 		# positions in au
@@ -225,20 +222,23 @@ def make_data(force,approx,dt,total_time,bodies=-1,data=[],other_data=[]):
 			other_info[1][i] = 0.000165537115 #radius
 		
 		sim = numerics(initial_conditions, other_info, force,names_=names, central_force_=app,init_dt_=dt,total_time_=total_time)
-		# sim.write_datas()
 		sim.play()
-		# sim.write_datas()
 		return
 
-
-def get_new_data_name():
+#option == 0 -> regular planet data
+#option == 1 -> custom body data
+def get_new_data_name(option=0):
 	largest_num = 0
+	add_me = ''
+	if option == 1:
+		add_me = 'custom'
 	for i in os.listdir('./data_dump/'):
 		d = i.split("_")
-		if int(d[1].strip('.hdf5')) > largest_num:
-			largest_num = int(d[1].strip('.hdf5'))
+		num = int(d[1].split('.')[0])
+		if num > largest_num:
+			largest_num = num
 
-	return 'data_{}.hdf5'.format(largest_num+1)
+	return '{}data_{}.hdf5'.format(add_me,largest_num+1)
 	
 
 
@@ -276,7 +276,6 @@ class numerics:
 		else:
 			self.approx = 'many-body' 
 		#data[iteration][body][{x},{y},{z}]   (only position data)
-		# self.data = np.full((self.max_len, self.bodies, 3),np.nan)
 		self.f = h5py.File('./data_dump/'+get_new_data_name(), 'w')
 		self.data = self.f.create_dataset('position_data', \
 			(self.max_len, self.bodies, 3), \
@@ -293,18 +292,11 @@ class numerics:
 	# returns an array of magnitudes by body
 	def magnitude(self,option):
 		if option == 0:
-			# print(self.data[self.data_index,:,self.x])
 			return_me = np.square(self.data[self.data_index,:,self.x])
-			# print(return_me)
-			# print('\n')
 			return_me = np.add(return_me, np.square(self.data[self.data_index,:,self.y]))
-			# print(self.data[self.data_index,:,self.y])
-			# print(return_me)
 			return_me = np.add(return_me, np.square(self.data[self.data_index,:,self.z]))
-			# sys.exit(0)
 			return np.sqrt(return_me)
 		else:
-			# print(self.previous_velocity)
 			return_me = np.square(self.previous_velocity[:,self.x])
 			return_me = np.add(return_me, np.square(self.previous_velocity[:,self.y]))
 			return_me = np.add(return_me, np.square(self.previous_velocity[:,self.z]))
@@ -330,16 +322,11 @@ class numerics:
 	def play(self):
 		while self.current_time < self.total_time:
 			new_data = self.iterate(self.data[self.data_index])
-			# print(self.data[self.data_index])
-			# print('\n')
-			# print(new_data)
 			self.data_index += 1
 			if self.data_index >= self.max_len:
 				self.num_writes += 1
 				self.max_len *= 2
 				self.change_dataset_size()
-				# self.data = np.full((self.max_len, self.bodies, 3),np.nan)
-				# self.data_index = 0
 
 			self.data[self.data_index] = new_data
 			# self.update_dt()
@@ -375,7 +362,6 @@ class numerics:
 				if i != j:
 					for m in range(3):
 						r += (return_me[i][m] - return_me[j][m])**2
-					# print(r)
 					#units au^3 Msol-1 day^-2
 					mag = G*self.other_data[self.mass][j]/(r**(3/2))
 
@@ -397,7 +383,6 @@ class numerics:
 				if self.central_force:
 					break
 
-				# # print(veloc)
 				# for k in range(3):
 				# 	if k == 0:
 				# 		acci = mag*x_vec
