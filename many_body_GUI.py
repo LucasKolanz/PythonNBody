@@ -6,7 +6,6 @@ import mpl_toolkits.mplot3d.axes3d as p3
 import matplotlib.animation as animation
 import os
 import data as d
-# import make_data as md
 import numpy as np
 import h5py
 import time
@@ -16,6 +15,12 @@ class gui:
 	"""docstring for gui"""
 	def __init__(self):
 		super(gui, self).__init__()
+
+
+		self.sim = []
+		self.data_wrote = False
+
+
 		#initialize lists to hold widgets
 		self.make_data_menu_items = []
 		self.get_data_menu_items = []
@@ -62,6 +67,7 @@ class gui:
 		master_ = self.frm_graph
 
 		self.fig = plt.Figure(figsize=(7,5))
+		# self.ax = ''
 		self.graph_canvas = FigureCanvasTkAgg(self.fig, master=master_)
 		self.graph_canvas.get_tk_widget().pack(side = tk.LEFT)
 
@@ -385,6 +391,8 @@ class gui:
 		self.window.update_idletasks()
 
 	def handle_exit_click(self,event):
+		# if not self.data_wrote:
+		# 	self.sim.write_datas()
 		self.window.destroy()
 
 	def handle_run_click(self,event):
@@ -396,10 +404,17 @@ class gui:
 		self.window.update_idletasks()
 		# time.sleep(1)
 
+		self.input_variable_x_variables = np.array(self.input_variable_x_variables)
+		self.input_variable_o_variables = np.array(self.input_variable_o_variables)
+
 		if self.get_data_text.get() == 'Get Saved Data':
 			use_dt = float(self.dt.get())
 			use_tt = float(self.tot_time.get())
 			approx = self.approx_option.get()
+			if self.approx_option.get() == 'Central Force':
+				app = True
+			else:
+				app = False
 			if approx == "Central Force":
 				approx = 'central'
 			elif approx == 'Many-body':
@@ -409,15 +424,18 @@ class gui:
 				force = 'grav'
 			elif force == 'Electromagnetic':
 				force = 'em'
+			self.data_wrote = False
 			if self.planet_data_or_not_text.get() != 'Input Body Variables':
 				# approx = approx_option.get()
 				# force = force_option.get()
 				bodies = len(self.input_variable_x_variables)
-				d.make_data(force=force,approx=approx,dt=use_dt,total_time=use_tt, \
-					names=input_variable_names,data=input_variable_x_variables, other_data=np.transpose(input_variable_o_variables))
+				self.sim = d.numerics(initial_cond_=self.input_variable_x_variables,other_data_=np.transpose(self.input_variable_o_variables),force_=force,names_=self.input_variable_names,central_force_=app,init_dt_=use_dt,total_time_=use_tt)
+				d.make_data(force=force,approx=approx,dt=use_dt,total_time=use_tt, sim=self.sim,\
+					names=self.input_variable_names,data=self.input_variable_x_variables, other_data=np.transpose(self.input_variable_o_variables))
 			else:
+				self.sim = d.numerics(force_=force,names_=[],central_force_=app,init_dt_=use_dt,total_time_=use_tt)
 				bodies = int(self.num_bodies.get())
-				d.make_data(force=force,approx=approx,bodies=bodies,dt=use_dt,total_time=use_tt)
+				d.make_data(force=force,approx=approx,bodies=bodies,dt=use_dt,total_time=use_tt, sim=self.sim)
 			self.update_menu(self.get_existing_data(),self.ent_data_input,self.data_option)
 		else:
 			opts = self.data_option.get().split(',')
