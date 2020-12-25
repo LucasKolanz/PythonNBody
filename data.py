@@ -198,37 +198,7 @@ def get_planet_init_cond(list_bodies):
 	return initial_conditions,other_info,names
 
 
-def make_data(force,approx,dt,total_time,sim,names=[],bodies=-1,data=[],other_data=[]):
-	#use if planet_data_or_not_text.get() == 'Input Body Variables'
-	if approx == 'central':
-		app = True
-	else:
-		app = False
-	if len(data) != 0 and len(other_data) != 0:
-		# initial_conditions = np.array(data)
-		# other_info = np.array(other_data)
-		sim.set_init_conds(data,np.transpose(other_data),names)
-		sim.play()
-		return
-	#use if planet_data_or_not_text.get() != 'Input Body Variables'
-	else:
-		if isinstance(bodies,int):
-			if bodies > 0:
-				list_bodies = np.arange(0,bodies)
-			else:
-				print("Error: Please enter number of bodies as list or positive int")
-				return -1
-		elif isinstance(bodies,list):
-			list_bodies = bodies
-		else:
-			print("Error: 'bodies' attribute in make_data() not found")
-			return -1
-		#initial_conditions[body,{pos}{vel},{x}{y}{z}]
-		
-		dat,o_dat,names = get_planet_init_cond(list_bodies) 
-		sim.set_init_conds(dat,o_dat,names)
-		sim.play()
-		return
+
 
 #option == 0 -> regular planet data
 #option == 1 -> custom body data
@@ -265,52 +235,84 @@ class numerics:
 	#	'Grav' = gravitational
 	#TODO forces:
 	#	'em' = electromagnetic
-	def __init__(self, initial_cond_=[], other_data_=[], bodies_=-1,force_='grav', names_ = [], total_time_=3650*4*6, init_dt_=0.1, central_force_=False):
+	def __init__(self, arg):
 		super(numerics, self).__init__()
 		
-		self.total_time = total_time_
-		self.current_time = 0.0
-		self.central_force = central_force_
-		self.dt = init_dt_
-		self.names = names_
-		self.force = force_
-		self.initial_cond = initial_cond_
-		self.previous_velocity = []
-		self.other_data = []
+		if not isinstance(arg,dict):
+			print("arg attribute must be dict type")
+		
+		if 'total_time_' in arg.keys():
+			self.total_time = arg['total_time_']
+		else:
+			self.total_time = 36500
+		if 'central_force_' in arg.keys():
+			self.central_force = arg['central_force_']
+		else:
+			self.central_force = False
+		if 'init_dt_' in arg.keys():
+			self.dt = arg['init_dt_']
+		else:
+			self.dt = 0.1
+		if 'names_' in arg.keys():
+			self.names = arg['names_']
+		else:
+			self.names = []
+		if 'force_' in arg.keys():
+			self.force = arg['force_']
+		else:
+			self.force = 'grav'
+		if 'initial_cond_' in arg.keys():
+			self.initial_cond = arg['initial_cond_']
+		else:
+			self.initial_cond = []
+		if 'other_data_' in arg.keys():
+			self.other_data = arg['other_data_']
+		else:
+			self.other_data = []
+		if 'bodies_' in arg.keys():
+			self.bodies = arg['bodies_']
+		else:
+			self.bodies = -1
+		if 'mode_' in arg.keys():
+			self.mode = arg['mode_']
+		else:
+			self.mode = 'planetary' #other option is 'custom'
+
 		if self.central_force:
 			self.approx = 'central'
 		else:
 			self.approx = 'many-body' 
+		if self.mode == 'planetary':
+			self.op = 1
+		else:
+			self.op = 0
 		#data[iteration][body][{x},{y},{z}]   (only position data)
+		self.current_time = 0.0
+		self.previous_velocity = []
 		self.f = h5py.File('./data_dump/'+get_new_data_name(), 'w')
 		self.data_index = 0
 		self.num_writes = 0
 		self.previous_angmom = np.nan
+		self.data = []
 		
-		if bodies_ == -1 and (len(initial_cond_) == 0 and len(other_data_) == 0):
-			self.initial_cond = []
-			self.other_data = []
-			self.previous_velocity = []
-			self.bodies = -1
-			self.data = []
-		else:
-			if len(initial_cond_) != 0:
-				self.bodies = np.array(initial_cond_).shape[0]
-				self.initial_cond = initial_cond_
-				self.previous_velocity = self.initial_cond[:,self.vel,:]
-			if len(other_data_) != 0:
-				self.bodies = np.array(other_data_).shape[0]
-				self.other_data = other_data_
-			if bodies_ != -1:
-				self.bodies = bodies_
- 
-				self.data = self.f.create_dataset('position_data', \
-					(self.max_len, self.bodies, 3), \
-					dtype=np.float64, \
-					maxshape=(None,self.bodies,3))
-				if len(self.initial_cond) != 0:
-					self.data[0,:,:] = self.initial_cond[:,self.pos,:]
+		# if bodies_ == -1 and (len(initial_cond_) == 0 and len(other_data_) == 0):
+		# 	self.initial_cond = []
+		# 	self.other_data = []
+		# 	self.previous_velocity = []
+		# 	self.bodies = -1
+		if len(self.initial_cond) != 0:
+			self.bodies = np.array(self.initial_cond).shape[0]
+			self.initial_cond = self.initial_cond
+			self.previous_velocity = self.initial_cond[:,self.vel,:]
+		if self.bodies != -1:
+			self.data = self.f.create_dataset('position_data', \
+				(self.max_len, self.bodies, 3), \
+				dtype=np.float64, \
+				maxshape=(None,self.bodies,3))
+			if len(self.initial_cond) != 0:
+				self.data[0,:,:] = self.initial_cond[:,self.pos,:]
 
+		self.make_data(self.op)
 
 	#option=0 -> position magnitude
 	#option=1 -> velocity magnitude
@@ -345,13 +347,13 @@ class numerics:
 
 		self.f.close()
 
-	def set_init_conds(self, init_cond, other_init, names):
+	def set_init_conds(self, init_cond, other_init,names):
 		self.initial_cond = init_cond
-		self.bodies = np.array(init_cond).shape[0]
-		self.data = self.f.create_dataset('position_data', \
-				(self.max_len, self.bodies, 3), \
-				dtype=np.float64, \
-				maxshape=(None,self.bodies,3))
+		# self.bodies = np.array(init_cond).shape[0]
+		# self.data = self.f.create_dataset('position_data', \
+		# 		(self.max_len, self.bodies, 3), \
+		# 		dtype=np.float64, \
+		# 		maxshape=(None,self.bodies,3))
 		self.data[0,:,:] = init_cond[:,self.pos,:]
 		self.previous_velocity = init_cond[:,self.vel,:]
 		self.other_data = other_init
@@ -460,5 +462,35 @@ class numerics:
 		print(self.dt)
 		return
 
-		# for i in range(self.bodies):
 
+	#option == 0 -> all initial conditions are already set
+	#option == 1 -> need to get initial conditions of planets 
+	def make_data(self,option):
+		#use if planet_data_or_not_text.get() == 'Input Body Variables'
+		# if approx == 'central':
+		# 	app = True
+		# else:
+		# 	app = False
+		if option == 0:
+			self.play()
+			return
+		else:
+			# initial_conditions = np.array(data)
+			# other_info = np.array(other_data)
+			if isinstance(self.bodies,int):
+				if self.bodies > 0:
+					list_bodies = np.arange(0,self.bodies)
+				else:
+					print("Error: Please enter number of bodies as list or positive int")
+					return -1
+			elif isinstance(self.bodies,list):
+				list_bodies = np.array(self.bodies)
+			else:
+				print("Error: 'bodies' attribute in make_data() not found")
+				return -1
+			#initial_conditions[body,{pos}{vel},{x}{y}{z}]
+			
+			dat,o_dat,names = get_planet_init_cond(list_bodies)
+			self.set_init_conds(dat,o_dat,names)
+			self.play()
+			return
