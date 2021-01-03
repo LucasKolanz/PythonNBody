@@ -816,7 +816,8 @@ class gui:
 		for string in new_menu:
 			menu.add_command(label=string, 
 							 command=lambda value=string: update_option.set(value))
-		update_option.set(new_menu[0])
+		if len(new_menu) > 0:
+			update_option.set(new_menu[0])
 
 
 def main():

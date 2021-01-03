@@ -2,6 +2,7 @@ import numpy as np
 import os
 import sys
 import h5py
+import timing as t
 
 AU_TO_M = 149597870691
 DAY_TO_SEC = 86400;
@@ -294,6 +295,7 @@ class numerics:
 		self.num_writes = 0
 		self.previous_angmom = np.nan
 		self.data = []
+		self.ti = t.stopwatch()
 		
 		# if bodies_ == -1 and (len(initial_cond_) == 0 and len(other_data_) == 0):
 		# 	self.initial_cond = []
@@ -360,6 +362,7 @@ class numerics:
 		self.names = names
 
 	def play(self):
+		self.ti.start(race='play')
 		while self.current_time < self.total_time:
 			new_data = self.iterate(self.data[self.data_index])
 			self.data_index += 1
@@ -372,6 +375,7 @@ class numerics:
 			# self.update_dt()
 			self.current_time += self.dt
 		self.write_datas()
+		self.ti.stop(race='play',option='v')
 
 	def get_force_name():
 		approx = ''
