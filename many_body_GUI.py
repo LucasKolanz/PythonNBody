@@ -2,8 +2,9 @@
 This python file makes the main gui
 
 TODO (overall):
+	-add cython to interate method
 	-n body support
-	-electromagnetic force support
+	-electromagnetic force support (or maybe just relativity effects)
 
 TODO (this file):
 	-(DONE)user input initial conditions should have no sun in the graph, only dots
@@ -14,13 +15,13 @@ TODO (this file):
 	-allow speed up and slow down of animation via scroll bar
 	-change size of animation points as you zoom out/in  
 	-loading progress bar
-	-check if data exists before loading
+	-check if data exists before makeing new data
 '''
 
 import tkinter as tk
 from tkinter import ttk
 import threading
-import signal
+# import signal
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
@@ -45,6 +46,8 @@ class gui:
 
 		#initialize threads used
 		self.loading_thread = ''
+		self.prog_bar_thread = ''
+		self.loading_bool = False
 		self.graph_thread = ''
 
 		#initialize lists to hold widgets
@@ -247,20 +250,6 @@ class gui:
 		self.get_data_menu_items.append(self.ent_data_input)
 
 
-
-	# def traitement(self):
-	# 	def real_traitement():
-	# 		self.prog_bar.pack(padx=10,pady=10)
-	# 		self.prog_bar.start()
-	# 		time.sleep(5)
-	# 		self.prog_bar.stop()
-	# 		self.prog_bar.pack_forget()
-
-	# 		# self.btn['state']='normal'
-
-	# 	# self.btn['state']='disabled'
-	# 	threading.Thread(targumentset=real_traitement).start()
-
 	def get_existing_data(self):
 		return_me = []
 		for dat in os.listdir('./data_dump/'):
@@ -284,11 +273,13 @@ class gui:
 		
 
 	def get_data(self,data_num,max_frames, dim=3, option=0):
+
 		data_name = 'data_' + str(data_num) + '.hdf5'
 		try:
 			f = h5py.File('data_dump/{}'.format(data_name), 'r')
 		except:
 			return [-1,-1,-1,-1]
+		# os.system('h5dump -H data_dump/data_{}.hdf5'.format(data_num))
 		total_iter = f.attrs['iterations']
 		bodies = f.attrs['bodies']
 		radii = f.attrs['radii']
@@ -305,8 +296,8 @@ class gui:
 
 		return_me = np.empty((bodies,dim, frames))#[[],[],[]]
 		# f = h5py.File(data_name, 'r')
+		# print(f['position_data'][:10,:,:])
 		ind = 0
-
 		for j in range(0,total_iter,skip):
 			return_me[:, :, ind] = f['position_data'][j,:,:]
 			ind += 1
@@ -314,7 +305,6 @@ class gui:
 		while ind < frames:
 			return_me[:, :, ind] = f['position_data'][j,:,:]
 			ind += 1
-
 		return return_me, names, total_iter, radii
 
 	def get_bodies(self):
@@ -333,18 +323,25 @@ class gui:
 
 	def run_prog_bar(self,const):
 		t0 = time.time()
+		self.prog_bar.pack(padx=10,pady=10)
 		self.prog_bar.start()
+		self.loading_bool = True
 		# self.loading_bool = True
 		while self.prog_bar['value'] < 100:
 			# bar_len = 100-np.floor(const/(time.time()-t0))
-			print(bar_len)
+			# print('IN run_prog_bar: {}'.format(self.loading_bool))
+			bar_len = np.floor(time.time()-t0) * 10
+			if not self.loading_bool:
+				bar_len = 100
+			elif bar_len > 99:
+				bar_len = 99
 			# if bar_len > 99:
 			# 	bar_len == 99
-			self.prog_bar.step()
+			self.prog_bar['value'] = bar_len
+			# print(self.prog_bar['value'])
 			# bar['value'] = bar_len
 			self.window.update_idletasks()
 			time.sleep(0.1)
-		
 		self.prog_bar.stop()
 		self.prog_bar.pack_forget()
 
@@ -422,9 +419,13 @@ class gui:
 		#def get_data_num(bodies,force,approx,delta_t,total_t):
 		if self.loading_thread != '':
 			while self.loading_thread.is_alive():
-				time.sleep(1)
+				time.sleep(0.1)
+			self.update_menu(self.get_existing_data(),self.ent_data_input,self.data_option)
+		# else:
+
 		dat_num = self.get_data_num(requested_num_planets,requested_force,requested_approx,requested_dt,requested_tt)
 		# data,nombre,total_iter,radii = get_data(requested_force,requested_approx,requested_num_planets,max_frames=50000,dim=3)
+		# print(dat_num)
 		data,nombre,total_iter,radii = self.get_data(data_num=dat_num,max_frames=50000,dim=3)
 		# data = get_data(total_iter,50000,bodies,3)
 		# self.data = data_
@@ -432,6 +433,9 @@ class gui:
 		# self.total_iter = total_iter_
 		# self.radii = radii_
 		# signal.signal(signal.SIGUSR1, self.recieve_signal)
+		# print('in make_graph: {}'.format(data.shape))
+		# print(data[:,:,:10])
+		# print(data.sum())
 		try:
 			self.ax.clear()
 			# self.fig.legend([])
@@ -472,6 +476,7 @@ class gui:
 
 
 		# Creating the Animation object
+
 		self.line_ani = animation.FuncAnimation(self.fig, self.update_lines, total_iter, fargs=(data, lines),
 											blit=False, interval=1)
 
@@ -479,6 +484,7 @@ class gui:
 		# 	graph_canvas.get_tk_widget().pack_forget()
 		# except: 
 		# 	pass
+		self.loading_bool = False
 
 		self.fig.canvas.draw()
 		# graph_canvas = FigureCanvasTkAgg(fig, master=frm_graph)
@@ -526,8 +532,9 @@ class gui:
 		# window.update()
 		
 		self.status_text.set('Status: Processing')
-		self.prog_bar.pack(padx=10,pady=10)
-		self.prog_bar.start()
+		# self.prog_bar.pack(padx=10,pady=10)
+		# self.prog_bar.start()
+		
 		self.window.update_idletasks()
 		# self.traitement()
 		# time.sleep(1)
@@ -568,10 +575,14 @@ class gui:
 				arguments['bodies_'] = bodies
 				arguments['mode_'] = 'custom'
 
-				# loading_thread = threading.Thread(group=None,targumentset=self.run_prog_bar, \
-					# name=None,argumentss=(1), daemon=True)
-				# loading_thread.start()
-				self.sim = d.numerics(arguments)
+				self.prog_bar_thread = threading.Thread(group=None,target=self.run_prog_bar, \
+					name=None,args=(10,), daemon=True)
+				self.prog_bar_thread.start()
+				self.loading_thread = threading.Thread(group=None,target=d.numerics, \
+					name=None,args=(arguments,), daemon=True)
+				# self.run_prog_bar(10)
+				self.loading_thread.start()
+				# self.sim = d.numerics(arguments)
 				# self.sim.make_data(0)
 			else:
 				bodies = int(self.num_bodies.get())
@@ -585,14 +596,15 @@ class gui:
 				arguments['other_data_'] = self.input_variable_o_variables
 				arguments['bodies_'] = bodies
 				arguments['mode_'] = 'planetary'
+				self.prog_bar_thread = threading.Thread(group=None,target=self.run_prog_bar, \
+					name=None,args=(10,), daemon=True)
+				self.prog_bar_thread.start()
+				# print('PROG START')
 				self.loading_thread = threading.Thread(group=None,target=d.numerics, \
 					name=None,args=(arguments,), daemon=True)
+				# self.run_prog_bar(10)
 				self.loading_thread.start()
-				# print(self.data.size)
-				# self.sim = d.numerics(arguments)
-				# self.sim.make_data(1)
-				# d.make_data(force=force,approx=approx,bodies=bodies,dt=use_dt,total_time=use_tt, sim=self.sim)
-			self.update_menu(self.get_existing_data(),self.ent_data_input,self.data_option)
+				
 		else:
 			opts = self.data_option.get().split(',')
 			approx = opts[0].split('=')[1]
@@ -616,86 +628,8 @@ class gui:
 		inputs = ['approx={}'.format(approx),'force={}'.format(force), \
 			'num_planets={}'.format(bodies),'dt={}'.format(use_dt), \
 			'total_time={}'.format(use_tt)]
-		# self.graph_thread = threading.Thread(group=None,target=self.make_graph,name=None, \
-			# args=(inputs,),daemon=True)
-		# self.graph_thread.start()
-		# self.display_graph()/
-		# while self.graph_thread.is_alive():
-			# time.sleep(1)
-		# self.fig.canvas.draw()
+
 		self.make_graph(inputs)
-
-	# def recieve_signal(self,signum,stack):
-	# 	self.display_graph()
-
-	# def display_graph(self):
-	# 	self.graph_thread.join()
-	# 	try:
-	# 		self.ax.clear()
-	# 		# self.fig.legend([])
-	# 		self.ax.get_legend().remove()
-	# 		# self.fig.legend().remove()
-	# 	except:
-	# 		self.ax = p3.Axes3D(self.fig)
-	# 	# data = get_data()
-	# 	print('HERERERERER ')
-	# 	# Creating "iterations" line objects.
-	# 	# NOTE: Can't pass empty arrays into 3d version of plot()
-	# 	lines = []#np.zeros((len(data)),dtype=Line3D)
-	# 	marker_sizes = np.full((self.bodies),10)
-
-	# 	# marker_sizes = radii_to_markersize(radii)
-	# 	# marker_sizes[0] = 40
-	# 	# marker_sizes[1:5] *= 10/marker_sizes[3]
-
-	# 	colors = ['y','#ffa07a','#fff56a','b','r','#ff4500','#7a7733','#acf0f9','#109ae1']
-	# 	if self.planet_data_or_not_text.get() == 'Input Body Variables':
-	# 		marker_sizes[0] = 40
-	# 		lines.append(self.ax.plot(self.data[0][0, 0:1], self.data[0][1, 0:1], self.data[0][2, 0:1],lw = 3,marker='*',markersize=marker_sizes[0],color=colors[0],markevery=[-1])[0])
-	# 		lines.extend([self.ax.plot(dat[0, 0:1], dat[1, 0:1], dat[2, 0:1],lw = 0.9, marker='.',markersize=marker_sizes[i+1],color=colors[i+1],markevery=[-1])[0] for i,dat in enumerate(self.data[1:])])
-	# 	else:
-	# 		lines.extend([self.ax.plot(dat[0, 0:1], dat[1, 0:1], dat[2, 0:1],lw = 0.9, marker='.',markersize=marker_sizes[i],color=colors[i],markevery=[-1])[0] for i,dat in enumerate(self.data)])
-	# 	# Setting the axes properties
-	# 	lim = 3
-	# 	self.ax.set_xlim3d([-lim, lim])
-	# 	self.ax.set_xlabel('X')
-
-	# 	self.ax.set_ylim3d([-lim, lim])
-	# 	self.ax.set_ylabel('Y')
-
-	# 	self.ax.set_zlim3d([-lim, lim])
-	# 	self.ax.set_zlabel('Z')
-
-	# 	# ax.set_title('3D Test')
-	# 	self.ax.legend(self.nombre)
-
-
-	# 	# Creating the Animation object
-	# 	self.line_ani = animation.FuncAnimation(self.fig, self.update_lines, self.total_iter, fargs=(self.data, lines),
-	# 										blit=False, interval=1)
-
-	# 	print('jdkfjdlkfjasldkfjaldkfjaldf')
-	# 	# try: 
-	# 	# 	graph_canvas.get_tk_widget().pack_forget()
-	# 	# except: 
-	# 	# 	pass
-
-	# 	self.fig.canvas.draw()
-	# 	print('????????????????????????????????????')
-	# 	# graph_canvas = FigureCanvasTkAgg(fig, master=frm_graph)
-	# 	self.graph_canvas.get_tk_widget().pack(side = tk.LEFT)
-	# 	print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-	# 	# time.sleep(5)
-	# 	self.status_text.set('Status: Idle')
-
-
-	# 	# data,nombre,total_iter,radii = self.make_graph(['approx={}'.format(approx),'force={}'.format(force), \
-	# 		# 'num_planets={}'.format(bodies),'dt={}'.format(use_dt),'total_time={}'.format(use_tt)])
-
-	# 	# fig = plt.figure()
-		
-
-	# 	# window.update()
 
 
 	def handle_add_body_click(self,event):
