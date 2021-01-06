@@ -2,20 +2,20 @@
 This python file makes the main gui
 
 TODO (overall):
-	-add cython to interate method
+	-(DONE)add cython to interate method
 	-n body support
 	-electromagnetic force support (or maybe just relativity effects)
 
 TODO (this file):
 	-(DONE)user input initial conditions should have no sun in the graph, only dots
 	-(DONE)legend doesn't support updating graph in one run
-	-need to write out and reset data variables inbetween run button presses
+	-(DONE)need to write out and reset data variables inbetween run button presses
 	-show how much space your current saved data is taking up
 	-give options to delete saved data by data file and (maybe) all at once
 	-allow speed up and slow down of animation via scroll bar
 	-change size of animation points as you zoom out/in  
-	-loading progress bar
-	-check if data exists before makeing new data
+	-(in prog)loading progress bar
+	-(seems done but idk)check if data exists before makeing new data
 '''
 
 import tkinter as tk
@@ -34,6 +34,10 @@ import h5py
 import time
 
 class gui:
+
+	# col_length = 
+	# row_length = 
+
 	"""docstring for gui"""
 	def __init__(self):
 		super(gui, self).__init__()
@@ -55,6 +59,7 @@ class gui:
 		self.get_data_menu_items = []
 		self.input_variable_items = []
 		self.input_variable_names = []
+		self.existing_data_items = []
 
 		#initialize data storage variables
 		self.input_variable_x_variables = []
@@ -66,44 +71,70 @@ class gui:
 
 		self.window = tk.Tk()
 
-		self.width  = int(self.window.winfo_screenwidth()/2)
-		self.height = self.window.winfo_screenheight()
-		self.window.geometry(f'{self.width}x{self.height}')
+		self.w_width  = self.window.winfo_screenwidth()
+		self.w_height = self.window.winfo_screenheight()
+		self.window.geometry(f'{self.w_width}x{self.w_height}')
 
 		#set up frames
-		self.frm_graph = tk.Frame(master=self.window, bg="red", \
+		self.frm_input = tk.Frame(master=self.window)
+		self.frm_input.grid(row=0,column=0,columnspan=1,rowspan=1, \
+			padx=0,pady=0,sticky='NSEW')
+		
+		self.frm_graph = tk.Frame(master=self.window, bg="green", \
 			relief=tk.FLAT, borderwidth=5)
-		self.frm_graph.pack(fill=tk.X)
+		self.frm_graph.grid(row=0,column=4,columnspan=1,rowspan=1, \
+			padx=0,pady=0,sticky='NSEW')
 
-		self.frm_input = tk.Frame(master=self.window, height=self.height*0.15, \
-			bg="yellow", relief=tk.RIDGE, borderwidth=5)
-		self.frm_input.pack(fill=tk.X)
+		
+		# self.frm_add_body = tk.Frame(master=self.window, height=self.height*0.05, \
+		# 	bg='green', relief=tk.RIDGE, borderwidth=5)
+		# self.frm_add_body.grid(row=1,column=1,columnspan=4,rowspan=4,padx=10,pady=10)
 
-		self.frm_variable_input = tk.Frame(master=self.window, height=self.height*0.2, \
-			bg='green', relief=tk.RIDGE, borderwidth=5)
-		self.frm_variable_input.pack(fill=tk.X)
-
-		self.frm_add_body = tk.Frame(master=self.window, height=self.height*0.05, \
-			bg='green', relief=tk.RIDGE, borderwidth=5)
-		self.frm_add_body.pack(fill=tk.X)
-
-		self.frm_display_message = tk.Frame(master=self.window, height=self.height*0.05, \
-			bg='orange', relief=tk.RIDGE, borderwidth=5)
-		self.frm_display_message.pack(fill=tk.BOTH,expand=True)
+		# self.frm_display_message = tk.Frame(master=self.window, height=self.height*0.05, \
+		# 	bg='orange', relief=tk.RIDGE, borderwidth=5)
+		# self.frm_display_message.grid(row=2,column=0,columnspan=4,rowspan=4,padx=10,pady=10)
 
 
+		self.make_input_frame()
+		self.make_graph_frame()
+		
+		
+
+
+		
+
+		# self.lbl_tot
+
+
+
+		#set up message frame
+		# master_ = self.frm_display_message
+		# #make display message stuff
+		# self.lbl_message_display = tk.Label(master=master_, text='Messages: ')
+		# self.lbl_message_display.pack(fill=tk.Y,side=tk.LEFT)
+
+		# self.lbl_message = tk.StringVar()
+		# self.lbl_message.set('')
+		# self.lbl_message_display_message = tk.Label(master=master_, textvariable=self.lbl_message)
+
+
+		#set up widgets that dont show up on gui start up in input frame 
+		
+
+	def make_graph_frame(self):
 		#set up graph's frame
 		master_ = self.frm_graph
-
-		self.fig = plt.Figure(figsize=(7,5))
+		scale = 1.3
+		dpi_ = 80
+		self.fig = plt.Figure(figsize=(7*scale,5*scale),dpi=dpi_)
 		self.graph_canvas = FigureCanvasTkAgg(self.fig, master=master_)
-		self.graph_canvas.get_tk_widget().pack(side = tk.LEFT)
+		self.graph_canvas.get_tk_widget().pack(side = tk.RIGHT)
 
-		self.get_data_text = tk.StringVar()
-		self.get_data_text.set('Get Saved Data')
-		self.btn_get_data = tk.Button(master=master_, textvariable=self.get_data_text)
-		self.btn_get_data.bind("<Button-1>", self.handle_get_data_click)
-		self.btn_get_data.pack(padx=10, pady=10)
+		# self.get_data_text = tk.StringVar()
+		# self.get_data_text.set('Get Saved Data')
+		# self.btn_get_data = tk.Button(master=master_, textvariable=self.get_data_text)
+		# self.btn_get_data.bind("<Button-1>", self.handle_get_data_click)
+		# self.btn_get_data.pack(padx=10, pady=10)
 
 		self.btn_run = tk.Button(master=master_, text='Run Sim')
 		self.btn_run.bind("<Button-1>", self.handle_run_click)
@@ -122,122 +153,177 @@ class gui:
 		self.btn_exit.bind("<Button-1>", self.handle_exit_click)
 		self.btn_exit.pack(padx=10, pady=10,side='bottom')
 
+		# self.fg_width = self.frm_graph.winfo_width()
+		# self.fg_height = self.frm_graph.winfo_height()
 
+	def make_input_frame(self):
+		self.frm_p_input = tk.Frame(master=self.frm_input, \
+			bg="yellow", relief=tk.RIDGE, borderwidth=5)
+		self.frm_p_input.grid(row=0,column=0,columnspan=4,rowspan=4,padx=0, \
+			pady=0,sticky='NSEW')
+		
+		self.frm_variable_input = tk.Frame(master=self.frm_input, \
+			bg='green', relief=tk.RIDGE, borderwidth=5)
+		self.frm_variable_input.grid(row=4,column=0,columnspan=4,rowspan=4, \
+			padx=0,pady=0,sticky='NSEW')
+
+		self.existing_data_frame = tk.Frame(master=self.frm_input, \
+			bg='orange', relief=tk.RIDGE, borderwidth=5)
+		self.existing_data_frame.grid(row=8,column=0,columnspan=4,rowspan=4, \
+			padx=0,pady=0,sticky='NSEW')
+
+		self.make_p_input_frame()
+		self.make_var_input_frame()
+		self.make_get_existing_data_frame()
+
+		self.fi_width = self.frm_input.winfo_width()
+		self.fi_height = self.frm_input.winfo_height()
+
+	def make_p_input_frame(self):
 		#set up input frame 
-		master_ = self.frm_input
+		master_ = self.frm_p_input
 
 		#make widgets to get new data
 		self.approx = ["Central Force","Many-body"]
 		self.lbl_approx_input = tk.Label(master=master_, text="Approximation: ")
-		self.make_data_menu_items.append(self.lbl_approx_input)
+		self.lbl_approx_input.grid(row=0,column=0,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		# self.make_data_menu_items.append(self.lbl_approx_input)
 		self.approx_option = tk.StringVar(master=master_)
 		self.approx_option.set(self.approx[0])
-
 		self.ent_approx_input = tk.OptionMenu(master_,self.approx_option,*self.approx)
-		self.make_data_menu_items.append(self.ent_approx_input)
+		self.ent_approx_input.grid(row=0,column=1,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		# self.make_data_menu_items.append(self.ent_approx_input)
 
 		self.forces = ["Gravity","Electromagnetic","Both"]
 		self.lbl_force_input = tk.Label(master=master_, text="Force: ")
-		self.make_data_menu_items.append(self.lbl_force_input)
+		self.lbl_force_input.grid(row=0,column=2,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		# self.make_data_menu_items.append(self.lbl_force_input)
 		self.force_option = tk.StringVar(master=master_)
 		self.force_option.set(self.forces[0])
-
 		self.ent_force_input = tk.OptionMenu(master_,self.force_option,*self.forces)
-		self.make_data_menu_items.append(self.ent_force_input)
+		self.ent_force_input.grid(row=0,column=3,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		# self.make_data_menu_items.append(self.ent_force_input)
 
 		self.lbl_num_body_input = tk.Label(master=master_, text='Bodies: ')
-		self.make_data_menu_items.append(self.lbl_num_body_input)
+		self.lbl_num_body_input.grid(row=1,column=0,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		# self.make_data_menu_items.append(self.lbl_num_body_input)
 		self.num_bodies = tk.Entry(master=master_)
-		self.make_data_menu_items.append(self.num_bodies)
+		self.num_bodies.grid(row=1,column=1,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		# self.make_data_menu_items.append(self.num_bodies)
 
 		self.lbl_dt_input = tk.Label(master=master_, text='dt (days): ')
-		self.make_data_menu_items.append(self.lbl_dt_input)
+		self.lbl_dt_input.grid(row=2,column=0,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		# self.make_data_menu_items.append(self.lbl_dt_input)
 		self.dt = tk.Entry(master=master_)
-		self.make_data_menu_items.append(self.dt)
+		self.dt.grid(row=2,column=1,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		# self.make_data_menu_items.append(self.dt)
 
 		self.lbl_tot_time_input = tk.Label(master=master_, text='Total Time (days): ')
-		self.make_data_menu_items.append(self.lbl_tot_time_input)
+		self.lbl_tot_time_input.grid(row=3,column=0,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		# self.make_data_menu_items.append(self.lbl_tot_time_input)
 		self.tot_time = tk.Entry(master=master_)
-		self.make_data_menu_items.append(self.tot_time)
+		self.tot_time.grid(row=3,column=1,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
 
-		self.planet_data_or_not_text = tk.StringVar()
-		self.planet_data_or_not_text.set('Input Body Variables')
-		self.btn_planet_data_or_not = tk.Button(master=master_, textvariable=self.planet_data_or_not_text)
-		self.btn_planet_data_or_not.bind("<Button-1>", self.handle_body_variable_click)
-		self.make_data_menu_items.append(self.btn_planet_data_or_not)
+		self.relativity_bool = tk.IntVar()
+		self.relativity_checkbx = tk.Checkbutton(master=master_,text='',variable=self.relativity_bool, \
+			command=self.relativity_checkbx_ck)
+		self.relativity_checkbx.grid(row=1,column=2,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		self.relativity_text = tk.Label(master=master_,text="Relativity")
+		self.relativity_text.grid(row=1,column=3,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
 
-		self.grid_widgets(self.make_data_menu_items)
-
-
-		#make variable input frame
+		self.planet_bool = tk.IntVar()
+		self.planet_checkbx = tk.Checkbutton(master=master_,text='',variable=self.planet_bool, \
+			command=self.planet_checkbx_ck)
+		self.planet_checkbx.grid(row=2,column=2,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		self.planet_text = tk.Label(master=master_,text="Use Planet IC")
+		self.planet_text.grid(row=2,column=3,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		
+	def make_var_input_frame(self):
 		master_ = self.frm_variable_input
-		#make widgets to input variables by body
+		#If user wants to input initial conditions of every body
 		self.lbl_xi = tk.Label(master=master_, text='Xi (au): ')
-		self.input_variable_items.append(self.lbl_xi)
+		self.lbl_xi.grid(row=0,column=0,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		# self.input_variable_items.append(self.lbl_xi)
 		self.xi = tk.Entry(master=master_)
-		self.input_variable_items.append(self.xi)
+		self.xi.grid(row=0,column=1,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		# self.input_variable_items.append(self.xi)
 
 		self.lbl_yi = tk.Label(master=master_, text='Yi (au): ')
-		self.input_variable_items.append(self.lbl_yi)
+		self.lbl_yi.grid(row=1,column=0,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		# self.input_variable_items.append(self.lbl_yi)
 		self.yi = tk.Entry(master=master_)
-		self.input_variable_items.append(self.yi)
+		self.yi.grid(row=1,column=1,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		# self.input_variable_items.append(self.yi)
 
 		self.lbl_zi = tk.Label(master=master_, text='Zi (au): ')
-		self.input_variable_items.append(self.lbl_zi)
+		self.lbl_zi.grid(row=2,column=0,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		# self.input_variable_items.append(self.lbl_zi)
 		self.zi = tk.Entry(master=master_)
-		self.input_variable_items.append(self.zi)
+		self.zi.grid(row=2,column=1,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		# self.input_variable_items.append(self.zi)
 
 		self.lbl_vxi = tk.Label(master=master_, text='Vxi (au/day): ')
-		self.input_variable_items.append(self.lbl_vxi)
+		self.lbl_vxi.grid(row=0,column=2,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		# self.input_variable_items.append(self.lbl_vxi)
 		self.vxi = tk.Entry(master=master_)
-		self.input_variable_items.append(self.vxi)
+		self.vxi.grid(row=0,column=3,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		# self.input_variable_items.append(self.vxi)
 
 		self.lbl_vyi = tk.Label(master=master_, text='Vyi: (au/day)')
-		self.input_variable_items.append(self.lbl_vyi)
+		self.lbl_vyi.grid(row=1,column=2,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		# self.input_variable_items.append(self.lbl_vyi)
 		self.vyi = tk.Entry(master=master_)
-		self.input_variable_items.append(self.vyi)
+		self.vyi.grid(row=1,column=3,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		# self.input_variable_items.append(self.vyi)
 
 		self.lbl_vzi = tk.Label(master=master_, text='Vzi: (au/day)')
-		self.input_variable_items.append(self.lbl_vzi)
+		self.lbl_vzi.grid(row=2,column=2,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		# self.input_variable_items.append(self.lbl_vzi)
 		self.vzi = tk.Entry(master=master_)
-		self.input_variable_items.append(self.vzi)
+		self.vzi.grid(row=2,column=3,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		# self.input_variable_items.append(self.vzi)
 
 		self.lbl_body_mass = tk.Label(master=master_, text='Body Mass (Msol): ')
-		self.input_variable_items.append(self.lbl_body_mass)
+		self.lbl_body_mass.grid(row=3,column=0,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		# self.input_variable_items.append(self.lbl_body_mass)
 		self.body_mass = tk.Entry(master=master_)
-		self.input_variable_items.append(self.body_mass)
+		self.body_mass.grid(row=3,column=1,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		# self.input_variable_items.append(self.body_mass)
 
 		self.lbl_body_name = tk.Label(master=master_, text='Body Label (op): ')
-		self.input_variable_items.append(self.lbl_body_name)
+		self.lbl_body_name.grid(row=3,column=2,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		# self.input_variable_items.append(self.lbl_body_name)
 		self.body_name = tk.Entry(master=master_)
-		self.input_variable_items.append(self.body_name)
+		self.body_name.grid(row=3,column=3,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		# self.input_variable_items.append(self.body_name)
 
 		self.lbl_body_radius = tk.Label(master=master_, text='Body radius (au) (op): ')
-		self.input_variable_items.append(self.lbl_body_radius)
+		self.lbl_body_radius.grid(row=4,column=0,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
+		# self.input_variable_items.append(self.lbl_body_radius)
 		self.body_radius = tk.Entry(master=master_)
-		self.input_variable_items.append(self.body_radius)
+		self.body_radius.grid(row=4,column=1,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		# self.input_variable_items.append(self.body_radius)
 
 		#make add data button (in different frame)
-		self.btn_add_body = tk.Button(master=self.frm_add_body, text='Add Body')
+		self.btn_add_body = tk.Button(master=master_, text='Add Body')
 		self.btn_add_body.bind("<Button-1>", self.handle_add_body_click)
+		self.btn_add_body.grid(row=4,column=2,columnspan=2,rowspan=1,padx=1,pady=7, \
+			sticky='NSEW')
 
-
-		#set up message frame
-		master_ = self.frm_display_message
-		#make display message stuff
-		self.lbl_message_display = tk.Label(master=master_, text='Messages: ')
-		self.lbl_message_display.pack(fill=tk.Y,side=tk.LEFT)
-
-		self.lbl_message = tk.StringVar()
-		self.lbl_message.set('')
-		self.lbl_message_display_message = tk.Label(master=master_, textvariable=self.lbl_message)
-
-
-		#set up widgets that dont show up on gui start up in input frame 
-		master_ = self.frm_input
+	def make_get_existing_data_frame(self):
+		master_ = self.existing_data_frame
 		#make widgets to get existing data
-		self.lbl_get_data_prompt = tk.Label(master=master_, text='Please select a data set from the dropdown menu')
-		self.get_data_menu_items.append(self.lbl_get_data_prompt)
+		self.exist_data_bool = tk.IntVar()
+		self.existing_data_checkbx = tk.Checkbutton(master=master_,text='Use existing data', \
+			variable=self.exist_data_bool, command=self.existing_data_checkbx_ck)
+		self.existing_data_checkbx.grid(row=0,column=0,columnspan=4,rowspan=1, \
+			padx=1,pady=7,sticky='E')
+
+
+		self.lbl_get_data_prompt = tk.Label(master=master_, text='Please select an existing data set')
+		self.lbl_get_data_prompt.grid(row=1,column=0,columnspan=4,rowspan=1, \
+			padx=1,pady=7,sticky='NSEW')
+		# self.get_data_menu_items.append(self.lbl_get_data_prompt)
 
 		self.existing_data = self.get_existing_data()
 		self.data_option = tk.StringVar(master=master_)
@@ -246,9 +332,34 @@ class gui:
 
 		self.data_option.set(self.existing_data[0])
 
-		self.ent_data_input = tk.OptionMenu(self.frm_variable_input,self.data_option,*self.existing_data)
-		self.get_data_menu_items.append(self.ent_data_input)
+		self.ent_data_input = tk.OptionMenu(master_,self.data_option,*self.existing_data)
+		self.ent_data_input.grid(row=2,column=0,columnspan=4,rowspan=1, \
+			padx=1,pady=7,sticky='NSEW')
 
+		self.able(master_,'disable',["Checkbutton"])
+		# self.get_data_menu_items.append(self.ent_data_input)
+
+	def existing_data_checkbx_ck(self):
+		mo = 'disabled'
+		mo_o = 'normal'
+		if not self.exist_data_bool.get():
+			mo_o = 'disabled'
+			mo = 'normal'
+
+		self.able(self.frm_p_input,mo)
+		self.able(self.frm_variable_input,mo)
+
+		self.able(self.existing_data_frame,mo_o,["Checkbutton"])
+
+	def relativity_checkbx_ck(self):
+		return 
+
+	def planet_checkbx_ck(self):
+		mo = 'disabled'
+		if not self.planet_bool.get():
+			mo = 'normal'
+		self.able(self.frm_variable_input,mo)
+		self.able(self.existing_data_frame,mo)
 
 	def get_existing_data(self):
 		return_me = []
@@ -752,6 +863,16 @@ class gui:
 							 command=lambda value=string: update_option.set(value))
 		if len(new_menu) > 0:
 			update_option.set(new_menu[0])
+
+	#mode = 'normal' -> enable children
+	#mode = 'disable' -> disable children
+	def able(self,frame,mode='normal',exceptions=[""]):
+		for child in frame.winfo_children():
+			wtype = child.winfo_class()
+			if wtype not in exceptions:
+				child.configure(state=mode)
+			elif wtype == 'Frame':
+				self.able(child,mode=mode)
 
 
 def main():
