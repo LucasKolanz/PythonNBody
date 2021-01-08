@@ -70,33 +70,76 @@ class gui:
 			os.mkdir('data_dump')
 
 		self.window = tk.Tk()
+		self.window.resizable(True, True)
 
-		self.w_width  = self.window.winfo_screenwidth()
-		self.w_height = self.window.winfo_screenheight()
-		self.window.geometry(f'{self.w_width}x{self.w_height}')
+		# self.w_width  = self.window.winfo_screenwidth()
+		# self.w_height = self.window.winfo_screenheight()
+		# self.window.geometry(f'{self.w_width}x{self.w_height}')
 
 		#set up frames
-		self.frm_input = tk.Frame(master=self.window)
-		self.frm_input.grid(row=0,column=0,columnspan=1,rowspan=1, \
-			padx=0,pady=0,sticky='NSEW')
 		
 		self.frm_graph = tk.Frame(master=self.window, bg="green", \
 			relief=tk.FLAT, borderwidth=5)
-		self.frm_graph.grid(row=0,column=4,columnspan=1,rowspan=1, \
+		self.frm_graph.grid(row=0,column=1,columnspan=1,rowspan=1, \
 			padx=0,pady=0,sticky='NSEW')
+		self.make_graph_frame()
 
+		self.frm_input = tk.Frame(master=self.window)
+		self.frm_input.grid(row=0,column=0,columnspan=1,rowspan=1, \
+			padx=0,pady=0,sticky='NSEW')
+		self.make_input_frame()
+		# print(self.fg_width+self.fi_width)
+		wid = self.fg_width+self.fi_width
+		self.frm_display_message = tk.Frame(master=self.window, \
+			bg='red', relief=tk.RIDGE, borderwidth=5,height=50)
+
+		self.frm_display_message.grid(row=1,column=0,columnspan=4, \
+			rowspan=1,padx=0,pady=0,sticky='NSEW')
+		self.make_message_frame()
+
+		self.window.columnconfigure(1, weight=1)
+		# self.window.columnconfigure(0, weight=1)
+		self.window.rowconfigure(0, weight=1)
+		self.window.rowconfigure(1, weight=1)
 		
+		self.frm_display_message.rowconfigure(0, weight=1)
+		self.frm_display_message.rowconfigure(1, weight=1)
+		self.frm_display_message.columnconfigure(1, weight=1)
+
+		for i in range(4):
+			self.frm_p_input.columnconfigure(i, weight=1)
+		for i in range(4):
+			self.frm_variable_input.columnconfigure(i, weight=1)
+		for i in range(4):
+			self.existing_data_frame.columnconfigure(i, weight=1)
+
+		for i in range(4):
+			self.frm_p_input.rowconfigure(i, weight=1)
+		for i in range(4):
+			self.frm_variable_input.rowconfigure(i, weight=1)
+		for i in range(4):
+			self.existing_data_frame.rowconfigure(i, weight=1)
+
+		# self.frm_p_input.rowconfigure(0, weight=1)
+		# self.frm_variable_input.rowconfigure(0, weight=1)
+		# self.existing_data_frame.rowconfigure(0, weight=1)
+
+		# self.frm_input.rowconfigure(0, weight=1)
+		# self.frm_input.columnconfigure(0, weight=1)
+
+		# self.frm_graph.rowconfigure(0, weight=1)
+		# self.frm_graph.rowconfigure(1, weight=1)
+		# self.frm_graph.columnconfigure(0, weight=1)
+		# self.frm_graph.columnconfigure(1, weight=1)
+
+
+
 		# self.frm_add_body = tk.Frame(master=self.window, height=self.height*0.05, \
 		# 	bg='green', relief=tk.RIDGE, borderwidth=5)
 		# self.frm_add_body.grid(row=1,column=1,columnspan=4,rowspan=4,padx=10,pady=10)
 
-		# self.frm_display_message = tk.Frame(master=self.window, height=self.height*0.05, \
-		# 	bg='orange', relief=tk.RIDGE, borderwidth=5)
-		# self.frm_display_message.grid(row=2,column=0,columnspan=4,rowspan=4,padx=10,pady=10)
 
 
-		self.make_input_frame()
-		self.make_graph_frame()
 		
 		
 
@@ -107,28 +150,35 @@ class gui:
 
 
 
+		
+
+	def make_message_frame(self):
 		#set up message frame
-		# master_ = self.frm_display_message
-		# #make display message stuff
-		# self.lbl_message_display = tk.Label(master=master_, text='Messages: ')
-		# self.lbl_message_display.pack(fill=tk.Y,side=tk.LEFT)
+		master_ = self.frm_display_message
+		#make display message stuff
+		self.lbl_message_display = tk.Label(master=master_, text='Messages: ')
+		# self.lbl_message_display.pack(side=tk.LEFT,fill=tk.Y)
+		self.lbl_message_display.grid(row=0,column=0,padx=5,pady=5, sticky='NS')
 
-		# self.lbl_message = tk.StringVar()
-		# self.lbl_message.set('')
-		# self.lbl_message_display_message = tk.Label(master=master_, textvariable=self.lbl_message)
-
-
-		#set up widgets that dont show up on gui start up in input frame 
+		self.lbl_message = tk.StringVar()
+		self.lbl_message.set('')
+		# self.lbl_message.set('fa;sdfj;adasdjfaskjdfh;aksdjf;laksdjf;alksdjf;alksdjf;alksdjf;alksdjf;alksdjf;aslkdjf;alkdjf;alksdjf;alksdjf;askldfj;alksdjf;alskdfj;adkjfkasjfas;dkfa;sldkfja;sdkjfa;sdkljfa;sldkfja;sldkfja;lsdkfj;aslkdfja;sldkfja;lskdfja;kdlfj;asdkljfdkjkfsj;alskdjf;alksjdf;aksjd;faksdjf;alksdjf;alkdsjf;asdkjf;akdsfj;aslkdfja;sldkfja;lsdkjfkfa;dkfa;dkfa;dkj')
+		self.lbl_message_display_message = tk.Label(master=master_, \
+			textvariable=self.lbl_message)
+		self.lbl_message_display_message.grid(row=0,column=1,columnspan=1,padx=5, \
+			pady=5, sticky='NSEW')
+		# self.lbl_message_display_message.pack(fill=tk.Y)
 		
 
 	def make_graph_frame(self):
 		#set up graph's frame
 		master_ = self.frm_graph
-		scale = 1.3
+		scale = 1.35
 		dpi_ = 80
-		self.fig = plt.Figure(figsize=(7*scale,5*scale),dpi=dpi_)
+		self.fig = plt.Figure()
+		# self.fig = plt.Figure(figsize=(7*scale,5*scale),dpi=dpi_)
 		self.graph_canvas = FigureCanvasTkAgg(self.fig, master=master_)
-		self.graph_canvas.get_tk_widget().pack(side = tk.RIGHT)
+		self.graph_canvas.get_tk_widget().pack(fill=tk.BOTH)
 
 		# self.get_data_text = tk.StringVar()
 		# self.get_data_text.set('Get Saved Data')
@@ -136,48 +186,61 @@ class gui:
 		# self.btn_get_data.bind("<Button-1>", self.handle_get_data_click)
 		# self.btn_get_data.pack(padx=10, pady=10)
 
-		self.btn_run = tk.Button(master=master_, text='Run Sim')
-		self.btn_run.bind("<Button-1>", self.handle_run_click)
-		self.btn_run.pack(padx=10,pady=10)
-		self.window.bind("<Return>", self.handle_run_click)
-
-		self.status_text = tk.StringVar()
-		self.status_text.set('Status: Idle')
-		self.lbl_status = tk.Label(master=master_,textvariable=self.status_text)
-		self.lbl_status.pack(padx=10, pady=10)
 		
-		self.prog_bar = ttk.Progressbar(master=master_, orient=tk.HORIZONTAL, length = 100, \
-			mode='determinate')
-
-		self.btn_exit = tk.Button(master=master_, text='Exit Sim')
-		self.btn_exit.bind("<Button-1>", self.handle_exit_click)
-		self.btn_exit.pack(padx=10, pady=10,side='bottom')
-
-		# self.fg_width = self.frm_graph.winfo_width()
-		# self.fg_height = self.frm_graph.winfo_height()
+		self.fg_width = self.frm_graph.winfo_width()
+		self.fg_height = self.frm_graph.winfo_height()
 
 	def make_input_frame(self):
 		self.frm_p_input = tk.Frame(master=self.frm_input, \
 			bg="yellow", relief=tk.RIDGE, borderwidth=5)
-		self.frm_p_input.grid(row=0,column=0,columnspan=4,rowspan=4,padx=0, \
+		self.frm_p_input.grid(row=0,column=0,columnspan=1,rowspan=1,padx=0, \
 			pady=0,sticky='NSEW')
 		
 		self.frm_variable_input = tk.Frame(master=self.frm_input, \
 			bg='green', relief=tk.RIDGE, borderwidth=5)
-		self.frm_variable_input.grid(row=4,column=0,columnspan=4,rowspan=4, \
+		self.frm_variable_input.grid(row=1,column=0,columnspan=1,rowspan=1, \
 			padx=0,pady=0,sticky='NSEW')
 
 		self.existing_data_frame = tk.Frame(master=self.frm_input, \
 			bg='orange', relief=tk.RIDGE, borderwidth=5)
-		self.existing_data_frame.grid(row=8,column=0,columnspan=4,rowspan=4, \
+		self.existing_data_frame.grid(row=2,column=0,columnspan=1,rowspan=1, \
+			padx=0,pady=0,sticky='NSEW')
+
+		self.frm_run_sim = tk.Frame(master=self.frm_input, \
+			bg='blue', relief=tk.RIDGE, borderwidth=5)
+		self.frm_run_sim.grid(row=3,column=0,columnspan=1,rowspan=1, \
 			padx=0,pady=0,sticky='NSEW')
 
 		self.make_p_input_frame()
 		self.make_var_input_frame()
 		self.make_get_existing_data_frame()
+		self.make_run_sim_frame()
 
 		self.fi_width = self.frm_input.winfo_width()
 		self.fi_height = self.frm_input.winfo_height()
+
+	def make_run_sim_frame(self):
+		master_ = self.frm_run_sim
+		self.btn_run = tk.Button(master=master_, text='Run Sim')
+		self.btn_run.bind("<Button-1>", self.handle_run_click)
+		self.btn_run.grid(row=0,column=0,columnspan=1,rowspan=1, \
+			padx=0,pady=0,sticky='NSEW')
+		self.window.bind("<Return>", self.handle_run_click)
+
+		self.status_text = tk.StringVar()
+		self.status_text.set('Status: Idle')
+		self.lbl_status = tk.Label(master=master_,textvariable=self.status_text)
+		self.lbl_status.grid(row=0,column=2,columnspan=1,rowspan=1, \
+			padx=0,pady=0,sticky='NSEW')
+		
+		# self.prog_bar = ttk.Progressbar(master=master_, orient=tk.HORIZONTAL, length = 100, \
+		# 	mode='determinate')
+
+		self.btn_exit = tk.Button(master=master_, text='Exit Sim')
+		self.btn_exit.bind("<Button-1>", self.handle_exit_click)
+		self.btn_exit.grid(row=0,column=3,columnspan=1,rowspan=1, \
+			padx=0,pady=0,sticky='NSEW')
+
 
 	def make_p_input_frame(self):
 		#set up input frame 
@@ -309,6 +372,8 @@ class gui:
 		self.btn_add_body.bind("<Button-1>", self.handle_add_body_click)
 		self.btn_add_body.grid(row=4,column=2,columnspan=2,rowspan=1,padx=1,pady=7, \
 			sticky='NSEW')
+
+		
 
 	def make_get_existing_data_frame(self):
 		master_ = self.existing_data_frame
