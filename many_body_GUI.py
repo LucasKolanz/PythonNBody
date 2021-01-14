@@ -82,13 +82,20 @@ class gui:
 			relief=tk.FLAT, borderwidth=5)
 		self.frm_graph.grid(row=0,column=1,columnspan=1,rowspan=1, \
 			padx=0,pady=0,sticky='NSEW')
+		self.frm_graph.rowconfigure(0, weight=1)
+		self.frm_graph.columnconfigure(0, weight=1)
 		self.make_graph_frame()
 
 		self.frm_input = tk.Frame(master=self.window)
 		self.frm_input.grid(row=0,column=0,columnspan=1,rowspan=1, \
 			padx=0,pady=0,sticky='NSEW')
+		# self.frm_input.columnconfigure(0,weight=1)
+		self.frm_input.rowconfigure(0,weight=1)
+		self.frm_input.rowconfigure(1,weight=1)
+		self.frm_input.rowconfigure(2,weight=1)
+		self.frm_input.rowconfigure(3,weight=1)
 		self.make_input_frame()
-		# print(self.fg_width+self.fi_width)
+
 		wid = self.fg_width+self.fi_width
 		self.frm_display_message = tk.Frame(master=self.window, \
 			bg='red', relief=tk.RIDGE, borderwidth=5,height=50)
@@ -98,7 +105,6 @@ class gui:
 		self.make_message_frame()
 
 		self.window.columnconfigure(1, weight=1)
-		# self.window.columnconfigure(0, weight=1)
 		self.window.rowconfigure(0, weight=1)
 		self.window.rowconfigure(1, weight=1)
 		
@@ -108,49 +114,14 @@ class gui:
 
 		for i in range(4):
 			self.frm_p_input.columnconfigure(i, weight=1)
-		for i in range(4):
-			self.frm_variable_input.columnconfigure(i, weight=1)
-		for i in range(4):
-			self.existing_data_frame.columnconfigure(i, weight=1)
-
-		for i in range(4):
 			self.frm_p_input.rowconfigure(i, weight=1)
 		for i in range(4):
+			self.frm_variable_input.columnconfigure(i, weight=1)
 			self.frm_variable_input.rowconfigure(i, weight=1)
 		for i in range(4):
+			self.existing_data_frame.columnconfigure(i, weight=1)
 			self.existing_data_frame.rowconfigure(i, weight=1)
 
-		# self.frm_p_input.rowconfigure(0, weight=1)
-		# self.frm_variable_input.rowconfigure(0, weight=1)
-		# self.existing_data_frame.rowconfigure(0, weight=1)
-
-		# self.frm_input.rowconfigure(0, weight=1)
-		# self.frm_input.columnconfigure(0, weight=1)
-
-		# self.frm_graph.rowconfigure(0, weight=1)
-		# self.frm_graph.rowconfigure(1, weight=1)
-		# self.frm_graph.columnconfigure(0, weight=1)
-		# self.frm_graph.columnconfigure(1, weight=1)
-
-
-
-		# self.frm_add_body = tk.Frame(master=self.window, height=self.height*0.05, \
-		# 	bg='green', relief=tk.RIDGE, borderwidth=5)
-		# self.frm_add_body.grid(row=1,column=1,columnspan=4,rowspan=4,padx=10,pady=10)
-
-
-
-		
-		
-
-
-		
-
-		# self.lbl_tot
-
-
-
-		
 
 	def make_message_frame(self):
 		#set up message frame
@@ -178,14 +149,7 @@ class gui:
 		self.fig = plt.Figure()
 		# self.fig = plt.Figure(figsize=(7*scale,5*scale),dpi=dpi_)
 		self.graph_canvas = FigureCanvasTkAgg(self.fig, master=master_)
-		self.graph_canvas.get_tk_widget().pack(fill=tk.BOTH)
-
-		# self.get_data_text = tk.StringVar()
-		# self.get_data_text.set('Get Saved Data')
-		# self.btn_get_data = tk.Button(master=master_, textvariable=self.get_data_text)
-		# self.btn_get_data.bind("<Button-1>", self.handle_get_data_click)
-		# self.btn_get_data.pack(padx=10, pady=10)
-
+		self.graph_canvas.get_tk_widget().grid(row=0,column=0,sticky='NSEW')
 		
 		self.fg_width = self.frm_graph.winfo_width()
 		self.fg_height = self.frm_graph.winfo_height()
@@ -223,23 +187,23 @@ class gui:
 		master_ = self.frm_run_sim
 		self.btn_run = tk.Button(master=master_, text='Run Sim')
 		self.btn_run.bind("<Button-1>", self.handle_run_click)
-		self.btn_run.grid(row=0,column=0,columnspan=1,rowspan=1, \
-			padx=0,pady=0,sticky='NSEW')
+		self.btn_run.grid(row=1,column=1,padx=15,pady=15)
+	
 		self.window.bind("<Return>", self.handle_run_click)
 
 		self.status_text = tk.StringVar()
 		self.status_text.set('Status: Idle')
 		self.lbl_status = tk.Label(master=master_,textvariable=self.status_text)
-		self.lbl_status.grid(row=0,column=2,columnspan=1,rowspan=1, \
-			padx=0,pady=0,sticky='NSEW')
-		
-		# self.prog_bar = ttk.Progressbar(master=master_, orient=tk.HORIZONTAL, length = 100, \
-		# 	mode='determinate')
-
+		self.lbl_status.grid(row=1,column=2,padx=15,pady=15)
+	
 		self.btn_exit = tk.Button(master=master_, text='Exit Sim')
 		self.btn_exit.bind("<Button-1>", self.handle_exit_click)
-		self.btn_exit.grid(row=0,column=3,columnspan=1,rowspan=1, \
-			padx=0,pady=0,sticky='NSEW')
+		self.btn_exit.grid(row=1,column=3,padx=15,pady=15)
+
+		master_.grid_rowconfigure(0, weight=1)
+		master_.grid_rowconfigure(2, weight=1)
+		master_.grid_columnconfigure(0, weight=1)
+		master_.grid_columnconfigure(4, weight=1)
 
 
 	def make_p_input_frame(self):
@@ -630,7 +594,7 @@ class gui:
 		# marker_sizes[1:5] *= 10/marker_sizes[3]
 
 		colors = ['y','#ffa07a','#fff56a','b','r','#ff4500','#7a7733','#acf0f9','#109ae1']
-		if self.planet_data_or_not_text.get() == 'Input Body Variables':
+		if self.planet_bool.get() == 1:
 			marker_sizes[0] = 40
 			lines.append(self.ax.plot(data[0][0, 0:1], data[0][1, 0:1], data[0][2, 0:1],lw = 3,marker='*',markersize=marker_sizes[0],color=colors[0],markevery=[-1])[0])
 			lines.extend([self.ax.plot(dat[0, 0:1], dat[1, 0:1], dat[2, 0:1],lw = 0.9, marker='.',markersize=marker_sizes[i+1],color=colors[i+1],markevery=[-1])[0] for i,dat in enumerate(data[1:])])
@@ -664,7 +628,9 @@ class gui:
 
 		self.fig.canvas.draw()
 		# graph_canvas = FigureCanvasTkAgg(fig, master=frm_graph)
-		self.graph_canvas.get_tk_widget().pack(side = tk.LEFT)
+		self.graph_canvas.get_tk_widget().grid(row=0,column=0,sticky='NSEW')
+		# self.graph_canvas.columnconfigure(0,weight=1)
+		# self.graph_canvas.rowconfigure(0,weight=1)
 		# time.sleep(5)
 		self.status_text.set('Status: Idle')
 
@@ -718,7 +684,7 @@ class gui:
 		self.input_variable_x_variables = np.array(self.input_variable_x_variables)
 		self.input_variable_o_variables = np.array(self.input_variable_o_variables)
 
-		if self.get_data_text.get() == 'Get Saved Data':
+		if self.exist_data_bool.get() == 0:
 			use_dt = float(self.dt.get())
 			use_tt = float(self.tot_time.get())
 			approx = self.approx_option.get()
@@ -736,7 +702,7 @@ class gui:
 			elif force == 'Electromagnetic':
 				force = 'em'
 			self.data_wrote = False
-			if self.planet_data_or_not_text.get() != 'Input Body Variables':
+			if self.planet_bool.get() == 0:
 				# approx = approx_option.get()
 				# force = force_option.get()
 				bodies = len(self.input_variable_x_variables)
