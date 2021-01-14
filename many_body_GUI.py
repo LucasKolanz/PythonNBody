@@ -10,6 +10,7 @@ TODO (this file):
 	-(DONE)user input initial conditions should have no sun in the graph, only dots
 	-(DONE)legend doesn't support updating graph in one run
 	-(DONE)need to write out and reset data variables inbetween run button presses
+	-(DONE)redesign GUI [make it easier to see all options and make GUI expanding]
 	-show how much space your current saved data is taking up
 	-give options to delete saved data by data file and (maybe) all at once
 	-allow speed up and slow down of animation via scroll bar
@@ -122,23 +123,54 @@ class gui:
 			self.existing_data_frame.columnconfigure(i, weight=1)
 			self.existing_data_frame.rowconfigure(i, weight=1)
 
+	def get_size(self,start_path = '.'):
+		total_size = 0
+		for dirpath, dirnames, filenames in os.walk(start_path):
+			for f in filenames:
+				fp = os.path.join(dirpath, f)
+				# skip if it is symbolic link
+				if not os.path.islink(fp):
+					total_size += os.path.getsize(fp)
+
+		return total_size
+
+	def set_data_amount(self):
+		string1 = 'Storing '
+		string2 = ' of saved data'
+
+		directory = os.getcwd() + '/data_dump/'
+		# data = sum(os.path.getsize(f) for f in os.listdir(directory) if os.path.isfile(f))
+		data = float(self.get_size(directory))
+		count = 0
+		while data > 1000:
+			data = data / 1000
+			count += 1
+
+		size = 'B'
+		if count == 1:
+			size = 'KB'
+		elif count == 2:
+			size = 'GB'
+		elif count == 3:
+			size = 'TB'
+			
+
+
+		self.used_data_text.set(string1 + '{:.2f}'.format(data) + size + string2) 
 
 	def make_message_frame(self):
 		#set up message frame
 		master_ = self.frm_display_message
 		#make display message stuff
 		self.lbl_message_display = tk.Label(master=master_, text='Messages: ')
-		# self.lbl_message_display.pack(side=tk.LEFT,fill=tk.Y)
 		self.lbl_message_display.grid(row=0,column=0,padx=5,pady=5, sticky='NS')
 
 		self.lbl_message = tk.StringVar()
 		self.lbl_message.set('')
-		# self.lbl_message.set('fa;sdfj;adasdjfaskjdfh;aksdjf;laksdjf;alksdjf;alksdjf;alksdjf;alksdjf;alksdjf;aslkdjf;alkdjf;alksdjf;alksdjf;askldfj;alksdjf;alskdfj;adkjfkasjfas;dkfa;sldkfja;sdkjfa;sdkljfa;sldkfja;sldkfja;lsdkfj;aslkdfja;sldkfja;lskdfja;kdlfj;asdkljfdkjkfsj;alskdjf;alksjdf;aksjd;faksdjf;alksdjf;alkdsjf;asdkjf;akdsfj;aslkdfja;sldkfja;lsdkjfkfa;dkfa;dkfa;dkj')
 		self.lbl_message_display_message = tk.Label(master=master_, \
 			textvariable=self.lbl_message)
 		self.lbl_message_display_message.grid(row=0,column=1,columnspan=1,padx=5, \
 			pady=5, sticky='NSEW')
-		# self.lbl_message_display_message.pack(fill=tk.Y)
 		
 
 	def make_graph_frame(self):
@@ -252,18 +284,14 @@ class gui:
 		self.tot_time.grid(row=3,column=1,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
 
 		self.relativity_bool = tk.IntVar()
-		self.relativity_checkbx = tk.Checkbutton(master=master_,text='',variable=self.relativity_bool, \
+		self.relativity_checkbx = tk.Checkbutton(master=master_,text='Relativity',variable=self.relativity_bool, \
 			command=self.relativity_checkbx_ck)
-		self.relativity_checkbx.grid(row=1,column=2,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
-		self.relativity_text = tk.Label(master=master_,text="Relativity")
-		self.relativity_text.grid(row=1,column=3,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		self.relativity_checkbx.grid(row=1,column=2,columnspan=2,rowspan=1,padx=1,pady=7)
 
 		self.planet_bool = tk.IntVar()
-		self.planet_checkbx = tk.Checkbutton(master=master_,text='',variable=self.planet_bool, \
+		self.planet_checkbx = tk.Checkbutton(master=master_,text='Use Planet IC',variable=self.planet_bool, \
 			command=self.planet_checkbx_ck)
-		self.planet_checkbx.grid(row=2,column=2,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
-		self.planet_text = tk.Label(master=master_,text="Use Planet IC")
-		self.planet_text.grid(row=2,column=3,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
+		self.planet_checkbx.grid(row=2,column=2,columnspan=2,rowspan=1,padx=1,pady=7)
 		
 	def make_var_input_frame(self):
 		master_ = self.frm_variable_input
@@ -296,14 +324,14 @@ class gui:
 		self.vxi.grid(row=0,column=3,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
 		# self.input_variable_items.append(self.vxi)
 
-		self.lbl_vyi = tk.Label(master=master_, text='Vyi: (au/day)')
+		self.lbl_vyi = tk.Label(master=master_, text='Vyi (au/day):')
 		self.lbl_vyi.grid(row=1,column=2,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
 		# self.input_variable_items.append(self.lbl_vyi)
 		self.vyi = tk.Entry(master=master_)
 		self.vyi.grid(row=1,column=3,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
 		# self.input_variable_items.append(self.vyi)
 
-		self.lbl_vzi = tk.Label(master=master_, text='Vzi: (au/day)')
+		self.lbl_vzi = tk.Label(master=master_, text='Vzi (au/day):')
 		self.lbl_vzi.grid(row=2,column=2,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
 		# self.input_variable_items.append(self.lbl_vzi)
 		self.vzi = tk.Entry(master=master_)
@@ -345,12 +373,17 @@ class gui:
 		self.exist_data_bool = tk.IntVar()
 		self.existing_data_checkbx = tk.Checkbutton(master=master_,text='Use existing data', \
 			variable=self.exist_data_bool, command=self.existing_data_checkbx_ck)
-		self.existing_data_checkbx.grid(row=0,column=0,columnspan=4,rowspan=1, \
+		self.existing_data_checkbx.grid(row=1,column=2,columnspan=1,rowspan=1, \
 			padx=1,pady=7,sticky='E')
 
+		self.used_data_text = tk.StringVar()
+		self.set_data_amount()
+		self.lbl_used_data = tk.Label(master=master_, textvariable=self.used_data_text)
+		self.lbl_used_data.grid(row=1,column=1,columnspan=1,rowspan=1, \
+			padx=1,pady=7,sticky='W')
 
 		self.lbl_get_data_prompt = tk.Label(master=master_, text='Please select an existing data set')
-		self.lbl_get_data_prompt.grid(row=1,column=0,columnspan=4,rowspan=1, \
+		self.lbl_get_data_prompt.grid(row=2,column=1,columnspan=2,rowspan=1, \
 			padx=1,pady=7,sticky='NSEW')
 		# self.get_data_menu_items.append(self.lbl_get_data_prompt)
 
@@ -362,13 +395,22 @@ class gui:
 		self.data_option.set(self.existing_data[0])
 
 		self.ent_data_input = tk.OptionMenu(master_,self.data_option,*self.existing_data)
-		self.ent_data_input.grid(row=2,column=0,columnspan=4,rowspan=1, \
+		self.ent_data_input.grid(row=3,column=1,columnspan=2,rowspan=1, \
 			padx=1,pady=7,sticky='NSEW')
 
-		self.able(master_,'disable',["Checkbutton"])
+		master_.rowconfigure(0,weight=1)
+		master_.rowconfigure(4,weight=1)
+		master_.columnconfigure(0,weight=1)
+		master_.columnconfigure(3,weight=1)
+
+		dictionary = dict()
+		dictionary['Label'] = 1
+		self.able(master_,'disable',["Checkbutton"],dictionary)
 		# self.get_data_menu_items.append(self.ent_data_input)
 
 	def existing_data_checkbx_ck(self):
+		dictionary = dict()
+		dictionary['Label'] = 1
 		mo = 'disabled'
 		mo_o = 'normal'
 		if not self.exist_data_bool.get():
@@ -378,7 +420,9 @@ class gui:
 		self.able(self.frm_p_input,mo)
 		self.able(self.frm_variable_input,mo)
 
-		self.able(self.existing_data_frame,mo_o,["Checkbutton"])
+		dictionary = dict()
+		dictionary['Label'] = 1
+		self.able(self.existing_data_frame,mo_o,["Checkbutton"],dictionary)
 
 	def relativity_checkbx_ck(self):
 		return 
@@ -387,8 +431,11 @@ class gui:
 		mo = 'disabled'
 		if not self.planet_bool.get():
 			mo = 'normal'
+
+		dictionary = dict()
+		dictionary['Label'] = 1
 		self.able(self.frm_variable_input,mo)
-		self.able(self.existing_data_frame,mo)
+		self.able(self.existing_data_frame,mo,[''],dictionary)
 
 	def get_existing_data(self):
 		return_me = []
@@ -560,6 +607,7 @@ class gui:
 		if self.loading_thread != '':
 			while self.loading_thread.is_alive():
 				time.sleep(0.1)
+			self.set_data_amount()
 			self.update_menu(self.get_existing_data(),self.ent_data_input,self.data_option)
 		# else:
 
@@ -669,9 +717,10 @@ class gui:
 		self.window.destroy()
 
 	def handle_run_click(self,event):
-		self.reset_message()
+		# self.reset_message()
 		# lbl_status_value.delete("1.0",tk.END)
 		# window.update()
+		error_msg = ''
 		
 		self.status_text.set('Status: Processing')
 		# self.prog_bar.pack(padx=10,pady=10)
@@ -685,68 +734,65 @@ class gui:
 		self.input_variable_o_variables = np.array(self.input_variable_o_variables)
 
 		if self.exist_data_bool.get() == 0:
-			use_dt = float(self.dt.get())
-			use_tt = float(self.tot_time.get())
+			arguments = dict()
+			try:
+				use_dt = float(self.dt.get())
+				arguments['init_dt_'] = use_dt
+			except ValueError:
+				error_msg += 'Error: Please enter a value for dt\n'
+			try:
+				use_tt = float(self.tot_time.get())
+				arguments['total_time_'] = use_tt
+			except ValueError:
+				error_msg += 'Error: Please enter a value for total time\n'
+			
 			approx = self.approx_option.get()
-			if self.approx_option.get() == 'Central Force':
+			if approx == 'Central Force':
 				app = True
+				approx = 'central'
 			else:
 				app = False
-			if approx == "Central Force":
-				approx = 'central'
-			elif approx == 'Many-body':
 				approx = 'many-body'
+			arguments['central_force_'] = app
+			
 			force = self.force_option.get()
 			if force == 'Gravity':
 				force = 'grav'
 			elif force == 'Electromagnetic':
 				force = 'em'
-			self.data_wrote = False
-			if self.planet_bool.get() == 0:
-				# approx = approx_option.get()
-				# force = force_option.get()
-				bodies = len(self.input_variable_x_variables)
-				arguments = dict()
-				arguments['total_time_'] = use_tt
-				arguments['central_force_'] = app
-				arguments['init_dt_'] = use_dt
-				arguments['names_'] = self.input_variable_names
-				arguments['force_'] = force
+			arguments['force_'] = force
+			# self.data_wrote = False
+			
+			if (len(self.input_variable_x_variables) == 0 or len(self.input_variable_o_variables) == 0) and self.planet_bool.get() == 0:
+				error_msg += 'Error: Please enter initial conditions manualy or select "Use Planet IC" (planet initial conditions)\n'
+			else:
 				arguments['initial_cond_'] = self.input_variable_x_variables
 				arguments['other_data_'] = self.input_variable_o_variables
+				bodies = len(self.input_variable_x_variables)
 				arguments['bodies_'] = bodies
+
+			if self.planet_bool.get() == 0:
+				arguments['names_'] = self.input_variable_names
 				arguments['mode_'] = 'custom'
 
-				self.prog_bar_thread = threading.Thread(group=None,target=self.run_prog_bar, \
-					name=None,args=(10,), daemon=True)
-				self.prog_bar_thread.start()
-				self.loading_thread = threading.Thread(group=None,target=d.numerics, \
-					name=None,args=(arguments,), daemon=True)
-				# self.run_prog_bar(10)
-				self.loading_thread.start()
-				# self.sim = d.numerics(arguments)
-				# self.sim.make_data(0)
-			else:
-				bodies = int(self.num_bodies.get())
-				arguments = dict()
-				arguments['total_time_'] = use_tt
-				arguments['central_force_'] = app
-				arguments['init_dt_'] = use_dt
+			else:	
+				if self.num_bodies.get() == '':
+					error_msg += 'Error: Please enter a number of bodies from 2-9\n'
+				else:
+					bodies = self.num_bodies
 				arguments['names_'] = []
-				arguments['force_'] = force
-				arguments['initial_cond_'] = self.input_variable_x_variables
-				arguments['other_data_'] = self.input_variable_o_variables
-				arguments['bodies_'] = bodies
 				arguments['mode_'] = 'planetary'
-				self.prog_bar_thread = threading.Thread(group=None,target=self.run_prog_bar, \
-					name=None,args=(10,), daemon=True)
-				self.prog_bar_thread.start()
-				# print('PROG START')
+			
+			# self.prog_bar_thread = threading.Thread(group=None,target=self.run_prog_bar, \
+			# 	name=None,args=(10,), daemon=True)
+			# self.prog_bar_thread.start()
+			if len(error_msg) == 0:
 				self.loading_thread = threading.Thread(group=None,target=d.numerics, \
 					name=None,args=(arguments,), daemon=True)
 				# self.run_prog_bar(10)
 				self.loading_thread.start()
-				
+
+
 		else:
 			opts = self.data_option.get().split(',')
 			approx = opts[0].split('=')[1]
@@ -763,15 +809,16 @@ class gui:
 				force = 'grav'
 			elif force == 'Electromagnetic':
 				force = 'em'
-
-			# d.make_data(bodies=bodies,force=force,approx=approx,dt=use_dt,total_time=use_tt, \
-			# 	data=input_variable_x_variables, other_data=input_variable_o_variables)
 		
-		inputs = ['approx={}'.format(approx),'force={}'.format(force), \
-			'num_planets={}'.format(bodies),'dt={}'.format(use_dt), \
-			'total_time={}'.format(use_tt)]
 
-		self.make_graph(inputs)
+		if len(error_msg) == 0:
+			inputs = ['approx={}'.format(approx),'force={}'.format(force), \
+				'num_planets={}'.format(bodies),'dt={}'.format(use_dt), \
+				'total_time={}'.format(use_tt)]
+			self.make_graph(inputs)
+		else:
+			self.lbl_message.set(error_msg[:-1])
+
 
 
 	def handle_add_body_click(self,event):
@@ -830,61 +877,59 @@ class gui:
 			self.input_variable_x_variables.append([[init_x,init_y,init_z],[init_vx,init_vy,init_vz]])
 			self.input_variable_o_variables.append([init_body_mass,init_body_radius])
 		else:
-			error_msg = error_msg[:-1]
-			self.lbl_message.set(error_msg)
-			self.lbl_message_display_message.pack(fill="none", expand=True)
+			self.lbl_message.set(error_msg[:-1])
+			
+	# def handle_body_variable_click(self,event):
+	# 	self.reset_message()
+	# 	if self.planet_data_or_not_text.get() == 'Input Body Variables':
+	# 		self.grid_widgets(self.input_variable_items)
+	# 		self.planet_data_or_not_text.set('Use Solar System Variables')
+	# 		self.btn_add_body.pack(padx=10,pady=10)
+	# 	else:
+	# 		self.ungrid_widgets(self.input_variable_items)
+	# 		self.planet_data_or_not_text.set('Input Body Variables')
+	# 		self.btn_add_body.pack_forget()
 
-	def handle_body_variable_click(self,event):
-		self.reset_message()
-		if self.planet_data_or_not_text.get() == 'Input Body Variables':
-			self.grid_widgets(self.input_variable_items)
-			self.planet_data_or_not_text.set('Use Solar System Variables')
-			self.btn_add_body.pack(padx=10,pady=10)
-		else:
-			self.ungrid_widgets(self.input_variable_items)
-			self.planet_data_or_not_text.set('Input Body Variables')
-			self.btn_add_body.pack_forget()
+	# def grid_widgets(self,widget_list,max_col_len=6):
+	# 	curr_row_len = 0
+	# 	curr_column_len = 0
+	# 	for ind,val in enumerate(widget_list):
+	# 		if curr_column_len >= max_col_len:
+	# 			curr_column_len = 0
+	# 			curr_row_len += 1
 
-	def grid_widgets(self,widget_list,max_col_len=6):
-		curr_row_len = 0
-		curr_column_len = 0
-		for ind,val in enumerate(widget_list):
-			if curr_column_len >= max_col_len:
-				curr_column_len = 0
-				curr_row_len += 1
+	# 		if ind % 2 == 0:
+	# 			left_pad = 10
+	# 			right_pad = 0
+	# 			side = 'E'
+	# 		else:
+	# 			left_pad = 0
+	# 			right_pad = 10
+	# 			side = 'W'
 
-			if ind % 2 == 0:
-				left_pad = 10
-				right_pad = 0
-				side = 'E'
-			else:
-				left_pad = 0
-				right_pad = 10
-				side = 'W'
+	# 		if ind == len(widget_list)-1:
+	# 			val.grid(row=curr_row_len,column=curr_column_len,sticky=side, \
+	# 				padx=(left_pad,right_pad),pady=3,columnspan=2)
+	# 		else:
+	# 			val.grid(row=curr_row_len,column=curr_column_len,sticky=side, \
+	# 				padx=(left_pad,right_pad),pady=3)
 
-			if ind == len(widget_list)-1:
-				val.grid(row=curr_row_len,column=curr_column_len,sticky=side, \
-					padx=(left_pad,right_pad),pady=3,columnspan=2)
-			else:
-				val.grid(row=curr_row_len,column=curr_column_len,sticky=side, \
-					padx=(left_pad,right_pad),pady=3)
+	# 		curr_column_len += 1
 
-			curr_column_len += 1
+	# def ungrid_widgets(self,widget_list):
+	# 	for ind,val in enumerate(widget_list):
+	# 		val.grid_forget()
 
-	def ungrid_widgets(self,widget_list):
-		for ind,val in enumerate(widget_list):
-			val.grid_forget()
+	# def pack_widgets(self,widget_list):
+	# 	for ind,val in enumerate(widget_list): 
+	# 		val.pack(fill="none", expand=True)
 
-	def pack_widgets(self,widget_list):
-		for ind,val in enumerate(widget_list): 
-			val.pack(fill="none", expand=True)
+	# def unpack_widgets(self,widget_list):
+	# 	for ind,val in enumerate(widget_list): 
+	# 		val.pack_forget()
 
-	def unpack_widgets(self,widget_list):
-		for ind,val in enumerate(widget_list): 
-			val.pack_forget()
-
-	def reset_message(self):
-		self.lbl_message_display_message.pack_forget()
+	# def reset_message(self):
+	# 	self.lbl_message_display_message.pack_forget()
 
 	def update_menu(self,new_menu,update_me,update_option):
 		menu = update_me["menu"]
@@ -897,9 +942,19 @@ class gui:
 
 	#mode = 'normal' -> enable children
 	#mode = 'disable' -> disable children
-	def able(self,frame,mode='normal',exceptions=[""]):
+	def able(self,frame,mode='normal',exceptions=[""],numbered_exceptions=[""]):
+		check_me = dict()
+		if type(numbered_exceptions) == dict:
+			check_me = numbered_exceptions
+
 		for child in frame.winfo_children():
 			wtype = child.winfo_class()
+			# print(wtype)
+			if len(check_me.keys()) > 0:
+				if wtype in list(check_me.keys()):
+					check_me[wtype] -= 1
+					if check_me[wtype] == 0:
+						continue
 			if wtype not in exceptions:
 				child.configure(state=mode)
 			elif wtype == 'Frame':
