@@ -11,7 +11,7 @@ TODO (this file):
 	-(DONE)legend doesn't support updating graph in one run
 	-(DONE)need to write out and reset data variables inbetween run button presses
 	-(DONE)redesign GUI [make it easier to see all options and make GUI expanding]
-	-show how much space your current saved data is taking up
+	-(DONE)show how much space your current saved data is taking up
 	-give options to delete saved data by data file and (maybe) all at once
 	-allow speed up and slow down of animation via scroll bar
 	-change size of animation points as you zoom out/in  
@@ -373,17 +373,22 @@ class gui:
 		self.exist_data_bool = tk.IntVar()
 		self.existing_data_checkbx = tk.Checkbutton(master=master_,text='Use existing data', \
 			variable=self.exist_data_bool, command=self.existing_data_checkbx_ck)
-		self.existing_data_checkbx.grid(row=1,column=2,columnspan=1,rowspan=1, \
+		self.existing_data_checkbx.grid(row=1,column=2,columnspan=2,rowspan=1, \
 			padx=1,pady=7,sticky='E')
 
 		self.used_data_text = tk.StringVar()
 		self.set_data_amount()
 		self.lbl_used_data = tk.Label(master=master_, textvariable=self.used_data_text)
-		self.lbl_used_data.grid(row=1,column=1,columnspan=1,rowspan=1, \
+		self.lbl_used_data.grid(row=1,column=1,columnspan=2,rowspan=1, \
 			padx=1,pady=7,sticky='W')
 
+		self.btn_delete_data = tk.Button(master=master_,text='Delete Saved Data')
+		self.btn_delete_data.bind("<Button-1>", self.handle_delete_data_click)
+		self.btn_delete_data.grid(row=2,column=1,columnspan=2,rowspan=1,padx=1,pady=7, \
+			sticky='W')
+
 		self.lbl_get_data_prompt = tk.Label(master=master_, text='Please select an existing data set')
-		self.lbl_get_data_prompt.grid(row=2,column=1,columnspan=2,rowspan=1, \
+		self.lbl_get_data_prompt.grid(row=3,column=1,columnspan=4,rowspan=1, \
 			padx=1,pady=7,sticky='NSEW')
 		# self.get_data_menu_items.append(self.lbl_get_data_prompt)
 
@@ -395,16 +400,17 @@ class gui:
 		self.data_option.set(self.existing_data[0])
 
 		self.ent_data_input = tk.OptionMenu(master_,self.data_option,*self.existing_data)
-		self.ent_data_input.grid(row=3,column=1,columnspan=2,rowspan=1, \
+		self.ent_data_input.grid(row=4,column=1,columnspan=4,rowspan=1, \
 			padx=1,pady=7,sticky='NSEW')
 
 		master_.rowconfigure(0,weight=1)
-		master_.rowconfigure(4,weight=1)
+		master_.rowconfigure(5,weight=1)
 		master_.columnconfigure(0,weight=1)
-		master_.columnconfigure(3,weight=1)
+		master_.columnconfigure(5,weight=1)
 
 		dictionary = dict()
 		dictionary['Label'] = 1
+		dictionary['Button'] = 1
 		self.able(master_,'disable',["Checkbutton"],dictionary)
 		# self.get_data_menu_items.append(self.ent_data_input)
 
@@ -422,6 +428,7 @@ class gui:
 
 		dictionary = dict()
 		dictionary['Label'] = 1
+		dictionary['Button'] = 1
 		self.able(self.existing_data_frame,mo_o,["Checkbutton"],dictionary)
 
 	def relativity_checkbx_ck(self):
@@ -434,6 +441,7 @@ class gui:
 
 		dictionary = dict()
 		dictionary['Label'] = 1
+		dictionary['Button'] = 1
 		self.able(self.frm_variable_input,mo)
 		self.able(self.existing_data_frame,mo,[''],dictionary)
 
@@ -879,57 +887,8 @@ class gui:
 		else:
 			self.lbl_message.set(error_msg[:-1])
 			
-	# def handle_body_variable_click(self,event):
-	# 	self.reset_message()
-	# 	if self.planet_data_or_not_text.get() == 'Input Body Variables':
-	# 		self.grid_widgets(self.input_variable_items)
-	# 		self.planet_data_or_not_text.set('Use Solar System Variables')
-	# 		self.btn_add_body.pack(padx=10,pady=10)
-	# 	else:
-	# 		self.ungrid_widgets(self.input_variable_items)
-	# 		self.planet_data_or_not_text.set('Input Body Variables')
-	# 		self.btn_add_body.pack_forget()
-
-	# def grid_widgets(self,widget_list,max_col_len=6):
-	# 	curr_row_len = 0
-	# 	curr_column_len = 0
-	# 	for ind,val in enumerate(widget_list):
-	# 		if curr_column_len >= max_col_len:
-	# 			curr_column_len = 0
-	# 			curr_row_len += 1
-
-	# 		if ind % 2 == 0:
-	# 			left_pad = 10
-	# 			right_pad = 0
-	# 			side = 'E'
-	# 		else:
-	# 			left_pad = 0
-	# 			right_pad = 10
-	# 			side = 'W'
-
-	# 		if ind == len(widget_list)-1:
-	# 			val.grid(row=curr_row_len,column=curr_column_len,sticky=side, \
-	# 				padx=(left_pad,right_pad),pady=3,columnspan=2)
-	# 		else:
-	# 			val.grid(row=curr_row_len,column=curr_column_len,sticky=side, \
-	# 				padx=(left_pad,right_pad),pady=3)
-
-	# 		curr_column_len += 1
-
-	# def ungrid_widgets(self,widget_list):
-	# 	for ind,val in enumerate(widget_list):
-	# 		val.grid_forget()
-
-	# def pack_widgets(self,widget_list):
-	# 	for ind,val in enumerate(widget_list): 
-	# 		val.pack(fill="none", expand=True)
-
-	# def unpack_widgets(self,widget_list):
-	# 	for ind,val in enumerate(widget_list): 
-	# 		val.pack_forget()
-
-	# def reset_message(self):
-	# 	self.lbl_message_display_message.pack_forget()
+	def handle_delete_data_click(self,event):
+		return
 
 	def update_menu(self,new_menu,update_me,update_option):
 		menu = update_me["menu"]
@@ -949,13 +908,15 @@ class gui:
 
 		for child in frame.winfo_children():
 			wtype = child.winfo_class()
-			# print(wtype)
+			config = True
 			if len(check_me.keys()) > 0:
+
 				if wtype in list(check_me.keys()):
 					check_me[wtype] -= 1
 					if check_me[wtype] == 0:
-						continue
-			if wtype not in exceptions:
+						config = False
+
+			if wtype not in exceptions and config:
 				child.configure(state=mode)
 			elif wtype == 'Frame':
 				self.able(child,mode=mode)
