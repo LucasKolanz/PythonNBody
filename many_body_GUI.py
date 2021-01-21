@@ -71,6 +71,7 @@ class gui:
 			os.mkdir('data_dump')
 
 		self.window = tk.Tk()
+		self.window.title('N-Body Simulation')
 		self.window.resizable(True, True)
 
 		# self.w_width  = self.window.winfo_screenwidth()
@@ -414,6 +415,50 @@ class gui:
 		self.able(master_,'disable',["Checkbutton"],dictionary)
 		# self.get_data_menu_items.append(self.ent_data_input)
 
+	def make_delete_list_frame(self):
+		master_ = self.frm_delete_list
+
+		canvas = tk.Canvas(master=master_)
+		scrollbar = ttk.Scrollbar(master_, orient="vertical", command=canvas.yview)
+		scrollable_frame = ttk.Frame(canvas)
+
+		scrollable_frame.bind(
+			"<Configure>",
+			lambda e: canvas.configure(
+				scrollregion=canvas.bbox("all")
+			)
+		)
+
+		canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+
+		canvas.configure(yscrollcommand=scrollbar.set)
+
+		self.check_buttons = []
+		self.check_buttons_ints = []
+		for i,data in enumerate(self.get_existing_data()):
+
+			self.check_buttons_ints.append(tk.IntVar())
+			self.check_buttons.append(tk.Checkbutton(master=master_,text=data, \
+				variable=self.check_buttons_ints[-1]))
+			self.check_buttons[-1].grid(row=i+1,column=1,columnspan=2,sticky='W')
+			# self.check_buttons[-1].pack()
+
+		# master_.pack()
+		# i = i + 1
+		master_.grid(row=3,column=1,columnspan=2,rowspan=2,sticky='NSEW')
+		scrollbar.grid(row=3,column=3,sticky='NSEW')
+		# i = i + 1
+		canvas.grid(row=1,column=1,sticky='NSEW')
+		# canvas.pack(side="left", fill="both", expand=True)
+		# i = i + 1
+		# scrollbar.pack(side="right", fill="y")
+
+		i = i + 1
+		master_.rowconfigure(0,weight=1)
+		master_.rowconfigure(i,weight=1)
+		master_.columnconfigure(0,weight=1)
+		master_.columnconfigure(4,weight=1)
+
 	def existing_data_checkbx_ck(self):
 		dictionary = dict()
 		dictionary['Label'] = 1
@@ -630,7 +675,6 @@ class gui:
 		# self.radii = radii_
 		# signal.signal(signal.SIGUSR1, self.recieve_signal)
 		# print('in make_graph: {}'.format(data.shape))
-		# print(data[:,:,:10])
 		# print(data.sum())
 		try:
 			self.ax.clear()
@@ -776,7 +820,8 @@ class gui:
 			else:
 				arguments['initial_cond_'] = self.input_variable_x_variables
 				arguments['other_data_'] = self.input_variable_o_variables
-				bodies = len(self.input_variable_x_variables)
+				# bodies = len(self.input_variable_x_variables)
+				bodies = int(self.num_bodies.get())
 				arguments['bodies_'] = bodies
 
 			if self.planet_bool.get() == 0:
@@ -787,9 +832,10 @@ class gui:
 				if self.num_bodies.get() == '':
 					error_msg += 'Error: Please enter a number of bodies from 2-9\n'
 				else:
-					bodies = self.num_bodies
+					bodies = int(self.num_bodies.get())
 				arguments['names_'] = []
 				arguments['mode_'] = 'planetary'
+				arguments['bodies_'] = bodies
 			
 			# self.prog_bar_thread = threading.Thread(group=None,target=self.run_prog_bar, \
 			# 	name=None,args=(10,), daemon=True)
@@ -886,9 +932,38 @@ class gui:
 			self.input_variable_o_variables.append([init_body_mass,init_body_radius])
 		else:
 			self.lbl_message.set(error_msg[:-1])
-			
+
+	def handle_delete_btn_click(self,event):
+			return
+
 	def handle_delete_data_click(self,event):
-		return
+		self.delete_data_window = tk.Toplevel(self.window)
+		self.delete_data_window.title('Delete Data')
+		self.delete_data_window.resizable(True, True)
+
+		master_ = self.delete_data_window
+
+		self.lbl_delete_window = tk.Label(master=master_,text='Select data and click delete to permanently delete')
+		self.lbl_delete_window.grid(row=1,column=1,padx=15,pady=5)
+
+		self.delete_all_ck_btn = tk.IntVar()
+		self.btn_all = tk.Checkbutton(master=master_,text='Delete All',variable=self.delete_all_ck_btn) \
+			# command=self.delete_all_ck_btn_ck)
+		self.btn_all.grid(row=2,column=1,sticky='W',padx=5)
+
+		self.btn_delete = tk.Button(master=master_,text='Delete')
+		self.btn_delete.bind("<Button-1>", self.handle_delete_btn_click)
+		self.btn_delete.grid(row=2,column=2,sticky='E',padx=15)
+
+		self.frm_delete_list = tk.Frame(master=master_,relief=tk.RIDGE,borderwidth=5,height=20)
+		self.make_delete_list_frame()
+		
+		# self.data_list = self.get_existing_data()
+
+		master_.rowconfigure(0,weight=1)
+		master_.rowconfigure(4,weight=1)
+		master_.columnconfigure(0,weight=1)
+		master_.columnconfigure(2,weight=1)
 
 	def update_menu(self,new_menu,update_me,update_option):
 		menu = update_me["menu"]
