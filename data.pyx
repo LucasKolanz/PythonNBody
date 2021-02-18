@@ -334,7 +334,6 @@ class numerics:
 
 
 	def play(self):
-		# print(type(ti.timings))
 		self.ti.start(race='play')
 		self.data_index = int(self.total_time/self.dt)+1
 		temp_data = np.zeros((self.data_index,self.bodies,3),dtype=np.float64)

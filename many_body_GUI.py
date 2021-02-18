@@ -66,6 +66,8 @@ class gui:
 		self.input_variable_x_variables = []
 		self.input_variable_o_variables = []
 
+		self.frm_delete_list = -1
+
 		###Begin main window making###
 		if not os.path.isdir('data_dump'):
 			os.mkdir('data_dump')
@@ -124,16 +126,27 @@ class gui:
 			self.existing_data_frame.columnconfigure(i, weight=1)
 			self.existing_data_frame.rowconfigure(i, weight=1)
 
-	def get_size(self,start_path = '.'):
-		total_size = 0
+	#option == 0 -> return total size
+	#option == 1 -> return list of data and sizes
+	def get_size(self,start_path = '.',option=0):
+		if option == 0:
+			return_me = 0
+		elif option == 1:
+			return_me = []
+		else:
+			print('Error: option {} not recognized'.format(option))
+			return
+
 		for dirpath, dirnames, filenames in os.walk(start_path):
 			for f in filenames:
 				fp = os.path.join(dirpath, f)
 				# skip if it is symbolic link
 				if not os.path.islink(fp):
-					total_size += os.path.getsize(fp)
-
-		return total_size
+					if option == 0:
+						return_me += os.path.getsize(fp)
+					elif option == 1:
+						return_me.append([f,os.path.getsize(fp)])
+		return return_me
 
 	def set_data_amount(self):
 		string1 = 'Storing '
@@ -249,7 +262,7 @@ class gui:
 		self.lbl_approx_input.grid(row=0,column=0,columnspan=1,rowspan=1,padx=1,pady=7,sticky="E")
 		# self.make_data_menu_items.append(self.lbl_approx_input)
 		self.approx_option = tk.StringVar(master=master_)
-		self.approx_option.set(self.approx[0])
+		self.approx_option.set(self.approx[1])
 		self.ent_approx_input = tk.OptionMenu(master_,self.approx_option,*self.approx)
 		self.ent_approx_input.grid(row=0,column=1,columnspan=1,rowspan=1,padx=1,pady=7,sticky="W")
 		# self.make_data_menu_items.append(self.ent_approx_input)
@@ -416,11 +429,19 @@ class gui:
 		# self.get_data_menu_items.append(self.ent_data_input)
 
 	def make_delete_list_frame(self):
+
+		if self.frm_delete_list != -1:
+			self.frm_delete_list.destroy()
+
+		self.frm_delete_list = tk.Frame(master=self.delete_data_window,relief=tk.RIDGE,borderwidth=5,height=20)
+
 		master_ = self.frm_delete_list
 
 		canvas = tk.Canvas(master=master_)
-		scrollbar = ttk.Scrollbar(master_, orient="vertical", command=canvas.yview)
-		scrollable_frame = ttk.Frame(canvas)
+		scrollbar_v = ttk.Scrollbar(master_, orient="vertical", command=canvas.yview)
+		scrollbar_h = ttk.Scrollbar(master_, orient="horizontal", command=canvas.xview)
+	
+		scrollable_frame = tk.Frame(canvas)
 
 		scrollable_frame.bind(
 			"<Configure>",
@@ -431,33 +452,39 @@ class gui:
 
 		canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
 
-		canvas.configure(yscrollcommand=scrollbar.set)
+		canvas.configure(yscrollcommand=scrollbar_v.set)
+		canvas.configure(xscrollcommand=scrollbar_h.set)
 
 		self.check_buttons = []
 		self.check_buttons_ints = []
+		self.data_labels = []
+		j = 0
+		i = 0
+		self.data_sizes = []#self.get_size(os.getcwd()+'/data_dump/',option = 1)
 		for i,data in enumerate(self.get_existing_data()):
-
+			data = data.replace(' ','')
+			
+			dat_num = self.get_data_num_single_str(data)
+			self.data_sizes.append(os.path.getsize(os.getcwd()+'/data_dump/data_{}.hdf5'.format(dat_num)))
 			self.check_buttons_ints.append(tk.IntVar())
-			self.check_buttons.append(tk.Checkbutton(master=master_,text=data, \
+			self.check_buttons.append(tk.Checkbutton(master=scrollable_frame,text=data, \
 				variable=self.check_buttons_ints[-1]))
-			self.check_buttons[-1].grid(row=i+1,column=1,columnspan=2,sticky='W')
-			# self.check_buttons[-1].pack()
+			self.check_buttons[-1].grid(row=i,column=1,columnspan=2,sticky='W')
+	
+			self.data_labels.append(tk.Label())
 
-		# master_.pack()
-		# i = i + 1
-		master_.grid(row=3,column=1,columnspan=2,rowspan=2,sticky='NSEW')
-		scrollbar.grid(row=3,column=3,sticky='NSEW')
-		# i = i + 1
-		canvas.grid(row=1,column=1,sticky='NSEW')
-		# canvas.pack(side="left", fill="both", expand=True)
-		# i = i + 1
-		# scrollbar.pack(side="right", fill="y")
+		if i == 0:
+			j = 1
+		else:
+			j = i + 1
 
-		i = i + 1
-		master_.rowconfigure(0,weight=1)
-		master_.rowconfigure(i,weight=1)
-		master_.columnconfigure(0,weight=1)
-		master_.columnconfigure(4,weight=1)
+		master_.grid(row=3,column=1,columnspan=2,rowspan=1,sticky='NSEW')
+		scrollbar_v.grid(row=1,column=3,rowspan=2,sticky='NSE')
+		scrollbar_h.grid(row=j,column=1,columnspan=2,sticky='WSE')
+		canvas.grid(row=1,column=1,columnspan=1,rowspan=2,sticky='NSEW')
+		master_.rowconfigure(1,weight=1)
+		master_.columnconfigure(1,weight=1)
+
 
 	def existing_data_checkbx_ck(self):
 		dictionary = dict()
@@ -508,8 +535,27 @@ class gui:
 			f = h5py.File('./data_dump/{}'.format(dat))
 			if f.attrs['approximation'] == approx and f.attrs['force'] == force:
 				if f.attrs['bodies'] == int(bodies) and f.attrs['dt'] == float(delta_t) and f.attrs['total_time'] == float(total_t):
-					return dat.strip('data_').strip('.hdf5')	
-		return -1		
+					return dat.split('_')[-1].split('.')[0]	
+		return -1
+
+	def get_data_num_single_str(self,data):
+		for att in data.split(','):
+			if 'Approx=' in att:
+				approx = att.strip('Approx=')
+			elif 'Force=' in att:
+				force = att.strip('Force=')
+			elif 'Bodies=' in att:
+				bodies = int(att.strip('Bodies='))
+			elif 'dt=' in att:
+				dt = float(att.strip('dt='))
+			elif 'TotalTime=' in att:
+				tot_time = float(att.strip('TotalTime='))
+		for dat in os.listdir('./data_dump/'):
+			f = h5py.File('./data_dump/{}'.format(dat))
+			if f.attrs['approximation'] == approx and f.attrs['force'] == force:
+				if f.attrs['bodies'] == int(bodies) and f.attrs['dt'] == float(dt) and f.attrs['total_time'] == float(tot_time):
+					return dat.split('_')[-1].split('.')[0]	
+		return -1			
 		
 
 	def get_data(self,data_num,max_frames, dim=3, option=0):
@@ -934,7 +980,12 @@ class gui:
 			self.lbl_message.set(error_msg[:-1])
 
 	def handle_delete_btn_click(self,event):
-			return
+
+		for index,value in enumerate(self.check_buttons):
+			if self.check_buttons_ints[index].get() or self.delete_all_ck_btn.get():
+				os.system('rm ./data_dump/data_{}.hdf5'.format(self.get_data_num_single_str(value['text'])))
+		self.make_delete_list_frame()
+		self.set_data_amount()
 
 	def handle_delete_data_click(self,event):
 		self.delete_data_window = tk.Toplevel(self.window)
@@ -944,10 +995,10 @@ class gui:
 		master_ = self.delete_data_window
 
 		self.lbl_delete_window = tk.Label(master=master_,text='Select data and click delete to permanently delete')
-		self.lbl_delete_window.grid(row=1,column=1,padx=15,pady=5)
+		self.lbl_delete_window.grid(row=1,column=1,padx=15,pady=5,sticky='W')
 
 		self.delete_all_ck_btn = tk.IntVar()
-		self.btn_all = tk.Checkbutton(master=master_,text='Delete All',variable=self.delete_all_ck_btn) \
+		self.btn_all = tk.Checkbutton(master=master_,text='Delete All',variable=self.delete_all_ck_btn) 
 			# command=self.delete_all_ck_btn_ck)
 		self.btn_all.grid(row=2,column=1,sticky='W',padx=5)
 
@@ -955,15 +1006,18 @@ class gui:
 		self.btn_delete.bind("<Button-1>", self.handle_delete_btn_click)
 		self.btn_delete.grid(row=2,column=2,sticky='E',padx=15)
 
-		self.frm_delete_list = tk.Frame(master=master_,relief=tk.RIDGE,borderwidth=5,height=20)
 		self.make_delete_list_frame()
 		
 		# self.data_list = self.get_existing_data()
 
-		master_.rowconfigure(0,weight=1)
-		master_.rowconfigure(4,weight=1)
-		master_.columnconfigure(0,weight=1)
-		master_.columnconfigure(2,weight=1)
+		# master_.rowconfigure(0,weight=0)
+		# master_.rowconfigure(1,weight=0)
+		# master_.rowconfigure(2,weight=0)
+		master_.rowconfigure(3,weight=1)
+		# master_.rowconfigure(4,weight=0)
+		# master_.columnconfigure(0,weight=0)
+		master_.columnconfigure(1,weight=1)
+		# master_.columnconfigure(2,weight=0)	
 
 	def update_menu(self,new_menu,update_me,update_option):
 		menu = update_me["menu"]

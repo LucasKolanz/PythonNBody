@@ -1,5 +1,6 @@
 /__pycache__
 /data_dump
+/build
 *.hdf5
 *.c
 *.so
