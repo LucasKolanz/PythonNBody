@@ -465,7 +465,7 @@ class gui:
 			data = data.replace(' ','')
 			
 			dat_num = self.get_data_num_single_str(data)
-			self.data_sizes.append(os.path.getsize(os.getcwd()+'/data_dump/data_{}.hdf5'.format(dat_num)))
+			self.data_sizes.append(os.path.getsize(os.getcwd()+'/data_dump/usr_data/data_{}.hdf5'.format(dat_num)))
 			self.check_buttons_ints.append(tk.IntVar())
 			self.check_buttons.append(tk.Checkbutton(master=scrollable_frame,text=data, \
 				variable=self.check_buttons_ints[-1]))
@@ -519,20 +519,21 @@ class gui:
 
 	def get_existing_data(self):
 		return_me = []
-		for dat in os.listdir('./data_dump/'):
-			try:
-				f = h5py.File('./data_dump/{}'.format(dat))
-				return_me.append('Approx={}, Force={}, Bodies={}, dt={}, Total Time={}'.format \
-					(f.attrs['approximation'],f.attrs['force'],f.attrs['bodies'], \
-						f.attrs['dt'],f.attrs['total_time']) \
-				)
-			except:
-				os.system('rm ./data_dump/{}'.format(dat))
+		for dat in os.listdir('./data_dump/usr_data/'):
+			if os.path.isfile('./data_dump/usr_data/'+dat):
+				try:
+					f = h5py.File('./data_dump/usr_data/{}'.format(dat))
+					return_me.append('Approx={}, Force={}, Bodies={}, dt={}, Total Time={}'.format \
+						(f.attrs['approximation'],f.attrs['force'],f.attrs['bodies'], \
+							f.attrs['dt'],f.attrs['total_time']) \
+					)
+				except:
+					os.system('rm ./data_dump/usr_data/{}'.format(dat))
 		return return_me
 
 	def get_data_num(self,bodies,force,approx,delta_t,total_t):
-		for dat in os.listdir('./data_dump/'):
-			f = h5py.File('./data_dump/{}'.format(dat))
+		for dat in os.listdir('./data_dump/usr_data/'):
+			f = h5py.File('./data_dump/usr_data/{}'.format(dat))
 			if f.attrs['approximation'] == approx and f.attrs['force'] == force:
 				if f.attrs['bodies'] == int(bodies) and f.attrs['dt'] == float(delta_t) and f.attrs['total_time'] == float(total_t):
 					return dat.split('_')[-1].split('.')[0]	
@@ -550,8 +551,8 @@ class gui:
 				dt = float(att.strip('dt='))
 			elif 'TotalTime=' in att:
 				tot_time = float(att.strip('TotalTime='))
-		for dat in os.listdir('./data_dump/'):
-			f = h5py.File('./data_dump/{}'.format(dat))
+		for dat in os.listdir('./data_dump/usr_data/'):
+			f = h5py.File('./data_dump/usr_data/{}'.format(dat))
 			if f.attrs['approximation'] == approx and f.attrs['force'] == force:
 				if f.attrs['bodies'] == int(bodies) and f.attrs['dt'] == float(dt) and f.attrs['total_time'] == float(tot_time):
 					return dat.split('_')[-1].split('.')[0]	
@@ -562,7 +563,7 @@ class gui:
 
 		data_name = 'data_' + str(data_num) + '.hdf5'
 		try:
-			f = h5py.File('data_dump/{}'.format(data_name), 'r')
+			f = h5py.File('data_dump/usr_data/{}'.format(data_name), 'r')
 		except:
 			return [-1,-1,-1,-1]
 		# os.system('h5dump -H data_dump/data_{}.hdf5'.format(data_num))
@@ -683,7 +684,7 @@ class gui:
 			requested_approx = 'central'
 
 		if isinstance(requested_num_planets, int):
-			if requested_num_planets < 0 or requested_num_planets > 9:
+			if requested_num_planets < 0 or requested_num_planets > 10:
 				print('Requested number of planets not supported. Please set a value from 1 to {}.'.format(d.max_solar_system_bodies))
 				return -1
 		elif isinstance(requested_num_planets, list):
@@ -739,7 +740,7 @@ class gui:
 		# marker_sizes[0] = 40
 		# marker_sizes[1:5] *= 10/marker_sizes[3]
 
-		colors = ['y','#ffa07a','#fff56a','b','r','#ff4500','#7a7733','#acf0f9','#109ae1']
+		colors = ['y','#ffa07a','#fff56a','b','r','#ff4500','#7a7733','#acf0f9','#109ae1','#808080']
 		if self.planet_bool.get() == 1:
 			marker_sizes[0] = 40
 			lines.append(self.ax.plot(data[0][0, 0:1], data[0][1, 0:1], data[0][2, 0:1],lw = 3,marker='*',markersize=marker_sizes[0],color=colors[0],markevery=[-1])[0])
@@ -983,7 +984,7 @@ class gui:
 
 		for index,value in enumerate(self.check_buttons):
 			if self.check_buttons_ints[index].get() or self.delete_all_ck_btn.get():
-				os.system('rm ./data_dump/data_{}.hdf5'.format(self.get_data_num_single_str(value['text'])))
+				os.system('rm ./data_dump/usr_data/data_{}.hdf5'.format(self.get_data_num_single_str(value['text'])))
 		self.make_delete_list_frame()
 		self.set_data_amount()
 

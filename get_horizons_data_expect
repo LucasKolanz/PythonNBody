@@ -1,0 +1,27 @@
+#!/usr/bin/expect -f
+
+set file_name [lindex $argv 0]
+set machine_name [lindex $argv 1]
+set dir [lindex $argv 2]
+
+set timeout -1
+log_user 0
+
+spawn ./ftp_transpher.sh $machine_name
+
+expect "Name (ssd.jpl.nasa.gov:"
+send -- "anonymous\r"
+
+expect "*Password:"
+send -- "lucas.kolanz@gmail.com\r"
+
+expect "*ftp>*"
+send -- "cd $dir\r"
+
+expect "*ftp>*"
+send -- "get $file_name\r"
+
+expect "*ftp>*"
+send -- "exit\r"
+
+expect eof

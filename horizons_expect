@@ -1,0 +1,90 @@
+#!/usr/bin/expect -f
+
+set option [lindex $argv 0]
+set random_int [lindex $argv 1]
+set body_id [lindex $argv 2]
+set coord_center [lindex $argv 3]
+set start_date [lindex $argv 4]
+set start_time [lindex $argv 5]
+set end_date [lindex $argv 6]
+set end_time [lindex $argv 7]
+
+set timeout -1
+log_user 0
+
+spawn ./horizons.sh
+
+expect "*Horizons>"
+send -- "$body_id\r"
+
+expect "*edisplay, ?, <cr>: "
+if {"$option" == "both" || "$option" == "other"} {
+	log_file -a data_dump/ftp/ftp_info_other_$random_int.log
+}
+send -- "F\r"
+
+expect "*edisplay, ?, <cr>: "
+if {$option == "both" || $option == "other"} {
+	log_file 
+}
+send -- "E\r"
+
+expect "Observe, Elements, Vectors*"
+send -- "v\r"
+
+expect "Coordinate center*"
+send -- "$coord_center\r"
+
+expect "Reference plane*"
+send -- "frame\r" 
+
+expect "Starting*"
+send -- "$start_date $start_time\r"
+
+expect "Ending*"
+send -- "$end_date $end_time\r"
+
+expect "Output interval*"
+send -- "1d\r"
+
+expect "*Accept default output*"
+send -- "n\r"
+
+expect "*Output reference frame*"
+send -- "ICRF\r"
+
+expect "Corrections*"
+send -- "1\r"
+
+expect "Output units*"
+send -- "2\r"
+
+expect "Spreadsheet CSV format*"
+send -- "YES\r"
+
+expect "Output delta-T*"
+send -- "NO\r"
+
+expect "Select output table type*"
+send -- "2\r"
+
+expect "*Scroll & Page:*"
+send -- "q\r"
+
+expect "*>>> Select...*"
+if {"$option" == "both" || "$option" == "state_vector"} {
+	log_file -a data_dump/ftp/ftp_info_state_vector_$random_int.log
+}
+send -- "F\r"
+
+expect "*>>> Select...*"
+if {"$option" == "both" || "$option" == "state_vector"} {
+	log_file
+}
+send -- "x\r"
+
+expect eof
+
+
+
+

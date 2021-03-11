@@ -1,12 +1,19 @@
 import numpy as np
 import timing as t
-cimport numpy as cnp
+cimport numpy as np
 # cimport cython
 from cython.view cimport array as cvarray
 from cpython.array cimport array
+from subprocess import run
+from random import seed
+from random import randint
+from datetime import datetime
 import os
 import sys
 import h5py
+
+
+seed(datetime.now())
 
 AU_TO_M = 149597870691
 DAY_TO_SEC = 86400;
@@ -21,14 +28,99 @@ max_solar_system_bodies = 9
 
 # data_name = 'position_data.hdf5'
 
+def other_from_raw_file(file_name):
+	return_me = np.zeros((2))
+	with open('./data_dump/ftp/'+file_name,'r') as fp:
+		mass_index = -1
+		mass_found = False
+		radius_index = -1
+		for line in fp.readlines():
+			line = line.replace('\n','')	
+			line = line.split(' ')
+			line = [i for i in line if i!='']
+			# print(line)
+			try:
+				if not mass_found:
+					mass_index = line.index('Mass') 
+					#mass in kg
+					try:
+						mass = float('{}e{}'.format(line[mass_index+4],line[mass_index+1][4:]))
+					except:
+						mass = float('{}e{}'.format(line[mass_index+3].split('+')[0],line[mass_index+1][4:])) 
+					mass_found = True
+					# print(line)
+					continue
+				else:
+					pass
+			except ValueError:	
+				pass
+			try:
+				radius_index = line.index('Radius') 
+				#radius in km
+				# print(line)
+				radius = float(line[radius_index+3].split('+')[0])
+			except ValueError:	
+				pass
+
+		return_me[0] = mass/1.989e30 #in solar masses
+		return_me[1] = radius/1.496e8 #in AU
+
+	os.system('rm ./data_dump/ftp/{}'.format(file_name))
+	return return_me
+
+def init_cond_from_raw_file(file_name):
+	return_me = np.zeros((2,3))
+	with open('./data_dump/ftp/'+file_name,'r') as fp:
+		read = False
+		for line in fp.readlines():
+			line = line.replace('\n','')	
+		
+
+			if line == '$$SOE':
+				read = True
+			elif read:
+				inits = line.replace(' ','').split(',')
+				init_vals = [float(i) for i in inits[2:-1]]
+				# print(np.array([[init_vals[0],init_vals[1],init_vals[2]],[init_vals[3],init_vals[4],init_vals[5]]]))
+				return_me[0,0] = init_vals[0]
+				return_me[0,1] = init_vals[1]
+				return_me[0,2] = init_vals[2]
+				return_me[1,0] = init_vals[3]
+				return_me[1,1] = init_vals[4]
+				return_me[1,2] = init_vals[5]
+				break
+			
+	os.system('rm ./data_dump/ftp/{}'.format(file_name))
+	return return_me
+
+
+def get_planet_init_cond_from_horizon(index,option,body,frame,start_date,start_time,end_date,end_time):
+	init_data = np.zeros((2,3))
+	other_data = np.zeros((2))
+	random_num = str(index)
+	file_name1 = 'state_vector_{}.log'.format(random_num)
+	file_name2 = 'other_{}.log'.format(random_num)
+	out = run(['bash', 'get_horizons_data.sh', option, random_num, body, frame, start_date, start_time, end_date, end_time])
+	if option == 'both':
+		init_data = init_cond_from_raw_file(file_name1)
+		other_data = other_from_raw_file(file_name2)
+		return init_data, other_data
+	elif option == 'state_vector':
+		init_data = init_cond_from_raw_file(file_name1)
+		return init_data
+	elif option == 'other':
+		other_data = other_from_raw_file(file_name2)
+		return other_data
 
 
 
-def get_planet_init_cond(list_bodies):
+def get_planet_init_cond(list_bodies,start_date="2000-Jan-1",start_time="00:00"):
 	initial_conditions = np.zeros((list_bodies.shape[0],2,3))
 	#other_info[{mass}{radius},body]
 	other_info = np.zeros((2,list_bodies.shape[0]))
 	names = []
+	end_date = start_date[:-1]+str(int(start_date.split('-')[-1])+1)
+	end_time = start_time 
 
 	# velocities in au/day
 	# positions in au
@@ -44,135 +136,166 @@ def get_planet_init_cond(list_bodies):
 		initial_conditions[i][1][0] = 0 #Vx0
 		initial_conditions[i][1][1] = 0 #Vy0
 		initial_conditions[i][1][2] = 0 #Vz0
+		
+		temp = get_planet_init_cond_from_horizon(i,'other','sun','@sun', start_date, start_time, end_date, end_time)
 
-		other_info[0][i] = 1 #mass
-		other_info[1][i] = 0.00465047 #radius
+		other_info[0][i] = 1  #mass
+		other_info[1][i] = temp[1] #radius
 
 	if 1 in list_bodies:
 		i += 1
 		#mercury
 		names.append('Mercury')
-		initial_conditions[i][0][0] = -3.124921389426347E-01 #X0
-		initial_conditions[i][0][1] = -3.231017308099852E-01 #Y0
-		initial_conditions[i][0][2] = 2.264004677880896E-03 #Z0
-		
-		initial_conditions[i][1][0] = 1.450098838504057E-02 #Vx0
-		initial_conditions[i][1][1] = -1.827392737866101E-02 #Vy0
-		initial_conditions[i][1][2] = -2.823480785896841E-03 #Vz0
 
-		other_info[0][i] = 1.651e-7  #mass
-		other_info[1][i] = 1.63083872e-5 #radius
+		initial_conditions[i], temp = get_planet_init_cond_from_horizon(i,'both','199','@sun', start_date, start_time, end_date, end_time)
+
+		other_info[0][i] = temp[0] #mass
+		other_info[1][i] = temp[1] #radius
+
+
+		# other_info[0][i] = 1.651e-7  #mass
+		# other_info[1][i] = 1.63083872e-5 #radius
 
 	if 2 in list_bodies:
 		i += 1
 		#venus
 		names.append('Venus')
-		initial_conditions[i][0][0] = -4.531869011211467E-02 #X0
-		initial_conditions[i][0][1] = -7.253165832792150E-01 #Y0
-		initial_conditions[i][0][2] = -7.337816726564671E-03 #Z0
-		
-		initial_conditions[i][1][0] = 2.005150325251360E-02 #Vx0
-		initial_conditions[i][1][1] = -1.338183192105111E-03 #Vy0
-		initial_conditions[i][1][2] = -1.175477383638605E-03 #Vz0
+		initial_conditions[i], temp = get_planet_init_cond_from_horizon(i,'both','299','@sun', start_date, start_time, end_date, end_time)
 
-		other_info[0][i] = 0.000002447 #mass
-		other_info[1][i] = 4.04537843e-5 #radius
+		other_info[0][i] = temp[0] #mass
+		other_info[1][i] = temp[1] #radius
 
 
 	if 3 in list_bodies:
 		i += 1
 		#earth
 		names.append('Earth')
-		initial_conditions[i][0][0] = -1.550257085548271E-01 #X0
-		initial_conditions[i][0][1] = -1.003588459006916E+00 #Y0
-		initial_conditions[i][0][2] = 4.967984437823963E-05 #Z0
-		
-		initial_conditions[i][1][0] = 1.671964880246573E-02 #Vx0
-		initial_conditions[i][1][1] = -2.696563942942344E-03 #Vy0
-		initial_conditions[i][1][2] = 3.499545652652556E-07 #Vz0
+		initial_conditions[i], temp = get_planet_init_cond_from_horizon(i,'both','399','@sun', start_date, start_time, end_date, end_time)
 
-		other_info[0][i] = 1/EM_TO_SM #mass
-		other_info[1][i] = 1/23454.8 #radius
+		other_info[0][i] = temp[0] #mass
+		other_info[1][i] = temp[1] #radius
+
+		# initial_conditions[i][0][0] = -1.550257085548271E-01 #X0
+		# initial_conditions[i][0][1] = -1.003588459006916E+00 #Y0
+		# initial_conditions[i][0][2] = 4.967984437823963E-05 #Z0
+		
+		# initial_conditions[i][1][0] = 1.671964880246573E-02 #Vx0
+		# initial_conditions[i][1][1] = -2.696563942942344E-03 #Vy0
+		# initial_conditions[i][1][2] = 3.499545652652556E-07 #Vz0
+
+		# other_info[0][i] = 1/EM_TO_SM #mass
+		# other_info[1][i] = 1/23454.8 #radius
 
 
 	if 4 in list_bodies:
 		i += 1
 		#mars
 		names.append('Mars')
-		initial_conditions[i][0][0] = 7.656049322021028E-01 #X0
-		initial_conditions[i][0][1] = -1.172049785802159E+00 #Y0
-		initial_conditions[i][0][2] = -4.334114585942423E-02 #Z0
-		
-		initial_conditions[i][1][0] = 1.224571787006004E-02 #Vx0
-		initial_conditions[i][1][1] = 8.853276243753566E-03 #Vy0
-		initial_conditions[i][1][2] = -1.149047792967216E-04 #Vz0
+		initial_conditions[i], temp = get_planet_init_cond_from_horizon(i,'both','499','@sun', start_date, start_time, end_date, end_time)
 
-		other_info[0][i] = 3.213e-7 #mass
-		other_info[1][i] = 2.27075425e-5 #radius
+		other_info[0][i] = temp[0] #mass
+		other_info[1][i] = temp[1] #radius
+
+		# initial_conditions[i][0][0] = 7.656049322021028E-01 #X0
+		# initial_conditions[i][0][1] = -1.172049785802159E+00 #Y0
+		# initial_conditions[i][0][2] = -4.334114585942423E-02 #Z0
+		
+		# initial_conditions[i][1][0] = 1.224571787006004E-02 #Vx0
+		# initial_conditions[i][1][1] = 8.853276243753566E-03 #Vy0
+		# initial_conditions[i][1][2] = -1.149047792967216E-04 #Vz0
+
+		# other_info[0][i] = 3.213e-7 #mass
+		# other_info[1][i] = 2.27075425e-5 #radius
 
 
 	if 5 in list_bodies:
 		i += 1
 		#jupiter
 		names.append('Jupiter')
-		initial_conditions[i][0][0] = 1.710479118687038E+00 #X0
-		initial_conditions[i][0][1] = -4.876479343950519E+00 #Y0
-		initial_conditions[i][0][2] = -1.801532969637167E-02 #Z0
-		
-		initial_conditions[i][1][0] = 7.037611366618768E-03 #Vx0
-		initial_conditions[i][1][1] = 2.856954462047065E-03 #Vy0
-		initial_conditions[i][1][2] = -1.693039791075531E-04 #Vz0
+		initial_conditions[i], temp = get_planet_init_cond_from_horizon(i,'both','599','@sun', start_date, start_time, end_date, end_time)
 
-		other_info[0][i] = 0.0009543 #mass
-		other_info[1][i] = 0.000477894503 #radius
+		other_info[0][i] = temp[0] #mass
+		other_info[1][i] = temp[1] #radius
+
+		# initial_conditions[i][0][0] = 1.710479118687038E+00 #X0
+		# initial_conditions[i][0][1] = -4.876479343950519E+00 #Y0
+		# initial_conditions[i][0][2] = -1.801532969637167E-02 #Z0
+		
+		# initial_conditions[i][1][0] = 7.037611366618768E-03 #Vx0
+		# initial_conditions[i][1][1] = 2.856954462047065E-03 #Vy0
+		# initial_conditions[i][1][2] = -1.693039791075531E-04 #Vz0
+
+		# other_info[0][i] = 0.0009543 #mass
+		# other_info[1][i] = 0.000477894503 #radius
 
 
 	if 6 in list_bodies:
 		i += 1
 		#saturn
 		names.append('Saturn')
-		initial_conditions[i][0][0] = 4.574047748292517E+00 #X0
-		initial_conditions[i][0][1] = -8.910379134359962E+00 #Y0
-		initial_conditions[i][0][2] = -2.714155779463191E-02 #Z0
-		
-		initial_conditions[i][1][0] = 4.660833672965436E-03 #Vx0
-		initial_conditions[i][1][1] = 2.535827026110950E-03 #Vy0
-		initial_conditions[i][1][2] = -2.296255933767816E-04 #Vz0
+		initial_conditions[i], temp = get_planet_init_cond_from_horizon(i,'both','699','@sun', start_date, start_time, end_date, end_time)
 
-		other_info[0][i] = 0.0002857 #mass
-		other_info[1][i] = 0.000402866697 #radius
+		other_info[0][i] = temp[0] #mass
+		other_info[1][i] = temp[1] #radius
+		# initial_conditions[i][0][0] = 4.574047748292517E+00 #X0
+		# initial_conditions[i][0][1] = -8.910379134359962E+00 #Y0
+		# initial_conditions[i][0][2] = -2.714155779463191E-02 #Z0
+		
+		# initial_conditions[i][1][0] = 4.660833672965436E-03 #Vx0
+		# initial_conditions[i][1][1] = 2.535827026110950E-03 #Vy0
+		# initial_conditions[i][1][2] = -2.296255933767816E-04 #Vz0
+
+		# other_info[0][i] = 0.0002857 #mass
+		# other_info[1][i] = 0.000402866697 #radius
 
 
 	if 7 in list_bodies:
 		i += 1
 		#uranus
 		names.append('Uranus')
-		initial_conditions[i][0][0] = 1.584565831457336E+01 #X0
-		initial_conditions[i][0][1] = 1.186850271611982E+01 #Y0
-		initial_conditions[i][0][2] = -1.611705227327084E-01 #Z0
-		
-		initial_conditions[i][1][0] = -2.380000642410224E-03 #Vx0
-		initial_conditions[i][1][1] = 2.967412286201140E-03 #Vy0
-		initial_conditions[i][1][2] = 4.190342137343341E-05 #Vz0
+		initial_conditions[i], temp = get_planet_init_cond_from_horizon(i,'both','799','@sun', start_date, start_time, end_date, end_time)
 
-		other_info[0][i] = 0.00004365 #mass
-		other_info[1][i] = 0.000170851362 #radius
+		other_info[0][i] = temp[0] #mass
+		other_info[1][i] = temp[1] #radius
+		# initial_conditions[i][0][0] = 1.584565831457336E+01 #X0
+		# initial_conditions[i][0][1] = 1.186850271611982E+01 #Y0
+		# initial_conditions[i][0][2] = -1.611705227327084E-01 #Z0
+		
+		# initial_conditions[i][1][0] = -2.380000642410224E-03 #Vx0
+		# initial_conditions[i][1][1] = 2.967412286201140E-03 #Vy0
+		# initial_conditions[i][1][2] = 4.190342137343341E-05 #Vz0
+
+		# other_info[0][i] = 0.00004365 #mass
+		# other_info[1][i] = 0.000170851362 #radius
 
 
 	if 8 in list_bodies:
 		i += 1
 		#neptune
 		names.append('Neptune')
-		initial_conditions[i][0][0] = 2.934520587108444E+01 #X0
-		initial_conditions[i][0][1] = -5.862792939590141E+00 #Y0
-		initial_conditions[i][0][2] = -5.556420990247191E-01 #Z0
-		
-		initial_conditions[i][1][0] = 6.020858054847442E-04 #Vx0
-		initial_conditions[i][1][1] = 3.100842483536389E-03 #Vy0
-		initial_conditions[i][1][2] = -7.799193902035271E-05 #Vz0
+		initial_conditions[i], temp = get_planet_init_cond_from_horizon(i,'both','899','@sun', start_date, start_time, end_date, end_time)
 
-		other_info[0][i] = 0.00005149 #mass
-		other_info[1][i] = 0.000165537115 #radius
+		other_info[0][i] = temp[0] #mass
+		other_info[1][i] = temp[1] #radius
+		# initial_conditions[i][0][0] = 2.934520587108444E+01 #X0
+		# initial_conditions[i][0][1] = -5.862792939590141E+00 #Y0
+		# initial_conditions[i][0][2] = -5.556420990247191E-01 #Z0
+		
+		# initial_conditions[i][1][0] = 6.020858054847442E-04 #Vx0
+		# initial_conditions[i][1][1] = 3.100842483536389E-03 #Vy0
+		# initial_conditions[i][1][2] = -7.799193902035271E-05 #Vz0
+
+		# other_info[0][i] = 0.00005149 #mass
+		# other_info[1][i] = 0.000165537115 #radius
+
+	if 9 in list_bodies:
+		i += 1
+		#pluto
+		names.append('Pluto')
+		initial_conditions[i], temp = get_planet_init_cond_from_horizon(i,'both','999','@sun', start_date, start_time, end_date, end_time)
+
+		other_info[0][i] = temp[0] #mass
+		other_info[1][i] = temp[1] #radius 
 
 	return initial_conditions,other_info,names
 
@@ -186,7 +309,7 @@ def get_new_data_name(option=0):
 	add_me = ''
 	if option == 1:
 		add_me = 'custom'
-	for i in os.listdir('./data_dump/'):
+	for i in os.listdir('./data_dump/usr_data/'):
 		d = i.split("_")
 		num = int(d[1].split('.')[0])
 		if num > largest_num:
@@ -268,7 +391,7 @@ class numerics:
 		#data[iteration][body][{x},{y},{z}]   (only position data)
 		self.current_time = 0.0
 		self.previous_velocity = []
-		self.f = h5py.File('./data_dump/'+get_new_data_name(), 'w')
+		self.f = h5py.File('./data_dump/usr_data/'+get_new_data_name(), 'w')
 		self.data_index = 0
 		self.num_writes = 0
 		self.previous_angmom = np.nan
