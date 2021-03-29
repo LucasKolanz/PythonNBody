@@ -1,3 +1,8 @@
+#By Lucas Kolanz
+
+#this file contains the stopwatch class
+#this class is for timing different code segments
+
 import time
 
 

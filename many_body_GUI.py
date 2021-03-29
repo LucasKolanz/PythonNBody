@@ -1,9 +1,12 @@
 '''
-This python file makes the main gui
+By Lucas Kolanz
+
+This python file makes the main gui for the n-body solver.
+It also checks input and runs all other necessary programs
 
 TODO (overall):
 	-(DONE)add cython to interate method
-	-n body support
+	-(DONE)n body support
 	-electromagnetic force support (or maybe just relativity effects)
 
 TODO (this file):
@@ -12,11 +15,12 @@ TODO (this file):
 	-(DONE)need to write out and reset data variables inbetween run button presses
 	-(DONE)redesign GUI [make it easier to see all options and make GUI expanding]
 	-(DONE)show how much space your current saved data is taking up
-	-give options to delete saved data by data file and (maybe) all at once
+	-(DONE)give options to delete saved data by data file and (maybe) all at once
+	-add gui to control different preset initial conditions
 	-allow speed up and slow down of animation via scroll bar
 	-change size of animation points as you zoom out/in  
 	-(in prog)loading progress bar
-	-(seems done but idk)check if data exists before makeing new data
+	-(This happens sometimes???)check if data exists before makeing new data
 '''
 
 import tkinter as tk
@@ -34,12 +38,183 @@ import numpy as np
 import h5py
 import time
 
+
+#given a string in the form of a python (or numpy) 1D list
+#	this function returns this as a list
+def list_from_string(obj):
+	if isinstance(obj,list):
+		return obj
+
+	separators = ['+',':',', ',',',' ']
+	separated_obj = []
+
+
+
+	if obj[0] == '[' and obj [-1] == ']':
+		obj = obj.strip(']')
+		obj = obj.strip('[')
+		for i in separators:
+			if isinstance(obj,list):
+				for j in obj:
+					if len(j.split(i)) > 1:
+						separated_obj.extend(j.split(i))
+			elif isinstance(obj,str):
+				if len(obj.split(i)) > 1:
+					separated_obj.extend(obj.split(i))
+					obj = separated_obj
+
+		
+		return [int(i) for i in obj]
+	else:
+		try:
+			return list(range(int(obj)))
+		except:
+			print("ERROR in list_from_string(): arg obj={}, type(obj)={}".format(obj,type(obj)))
+
+
+	# if obj[0] == '[' and obj [-1] == ']':
+	# 	if ',' not in obj and ':' not in obj:
+	# 		return [int(i) for i in obj[1:-1].split(' ')]
+	# 	already_got = False
+	# 	return_me = []
+	# 	for i,o in enumerate(obj):
+	# 		if o == ':':
+	# 			return_me.extend(list(range(int(obj[i-1]),int(obj[i+1])+1)))
+	# 			if int(obj[i+2] == ']'):
+	# 				already_got = True
+	# 		elif o == ',' or (not already_got and o == ']'):
+	# 			return_me.append(int(obj[i-1]))
+
+	# 	if len(return_me) == 0:
+	# 		return -1
+	# 	else:
+	# 		return return_me
+	# try:
+	# 	return list(range(int(obj)))
+	# except:
+	# 	print("ERROR in list_from_string(): arg obj={}, type(obj)={}".format(obj,type(obj)))
+
+
+#given the data_num of a certain dataset and max amount of frames
+#	allowed in the simultion, this function returns the data,
+#	the names of the bodiues, the number of iterations in the sim,
+# 	and the radii of the bodies
+def get_data(data_num,max_frames, dim=3, option=0):
+	data_name = 'data_' + str(data_num) + '.hdf5'
+	try:
+		f = h5py.File('data_dump/usr_data/{}'.format(data_name), 'r')
+	except:
+		return [-1,-1,-1,-1]
+	# os.system('h5dump -H data_dump/data_{}.hdf5'.format(data_num))
+	total_iter = f.attrs['iterations']
+	bodies = f.attrs['bodies']
+	# print(bodies)
+	# bodies_list = list_from_string() 
+	radii = f.attrs['radii']
+	names = []
+	if option == 0:
+		names = f.attrs['names']
+
+	if max_frames < total_iter:
+		skip = int(np.ceil(total_iter/max_frames))
+		frames = max_frames
+	else:
+		skip = 1
+		frames = total_iter
+
+	return_me = np.empty((len(bodies),dim, frames))#[[],[],[]]
+	# f = h5py.File(data_name, 'r')
+	# print(f['position_data'][:10,:,:])
+	ind = 0
+	for j in range(0,total_iter,skip):
+		return_me[:, :, ind] = f['position_data'][j,:,:]
+		ind += 1
+
+	while ind < frames:
+		return_me[:, :, ind] = f['position_data'][j,:,:]
+		ind += 1
+	return return_me, names, total_iter, radii
+
+
+#method returns the total size or specific file size
+#	of user made data
+#option == 0 -> return total size
+#option == 1 -> return list of data and sizes
+def get_size(start_path = '.',option=0):
+	if option == 0:
+		return_me = 0
+	elif option == 1:
+		return_me = []
+	else:
+		print('Error: option {} not recognized'.format(option))
+		return
+	for dirpath, dirnames, filenames in os.walk(start_path):
+		# print(dirpath)
+		# print(dirnames)
+		# print(filenames)
+		for f in filenames:
+			fp = os.path.join(dirpath, f)
+			# skip if it is symbolic link
+			if not os.path.islink(fp):
+				if option == 0:
+					return_me += os.path.getsize(fp)
+				elif option == 1:
+					return_me.append([f,os.path.getsize(fp)])
+	return return_me
+
+
+#given the attributes of a dataset, this function returns the
+#	appropriate data tag number
+def get_data_num(bodies,force,approx,delta_t,total_t):
+	for dat in os.listdir('./data_dump/usr_data/'):
+		f = h5py.File('./data_dump/usr_data/{}'.format(dat))
+		if f.attrs['approximation'] == approx and f.attrs['force'] == force:
+			if np.array_equal(list(f.attrs['bodies']), np.array(bodies)) and f.attrs['dt'] == float(delta_t) and f.attrs['total_time'] == float(total_t):
+				return dat.split('_')[-1].split('.')[0]	
+	return -1
+
+#given a string containing the attributes of a dataset, this function returns the
+#	appropriate data tag number
+def get_data_num_single_str(data):
+	# print(data)
+	for att in data.split(','):
+		if 'Approx=' in att:
+			approx = att.strip('Approx=')
+		elif 'Force=' in att:
+			force = att.strip('Force=')
+		elif 'Bodies=' in att:
+			bodies = att.strip('Bodies=')
+		elif 'dt=' in att:
+			dt = float(att.strip('dt='))
+		elif 'TotalTime=' in att:
+			tot_time = float(att.strip('TotalTime='))
+	for dat in os.listdir('./data_dump/usr_data/'):
+		f = h5py.File('./data_dump/usr_data/{}'.format(dat))
+		# print(f.attrs['bodies'], list_from_string(bodies),bodies,type(bodies))
+		if f.attrs['approximation'] == approx and f.attrs['force'] == force:
+			if np.array_equal(f.attrs['bodies'],list_from_string(bodies)) and f.attrs['dt'] == float(dt) and f.attrs['total_time'] == float(tot_time):
+				return dat.split('_')[-1].split('.')[0]	
+	return -1	
+
+#returns a list of the user saved data attributes
+def get_existing_data():
+	return_me = []
+	for dat in os.listdir('./data_dump/usr_data/'):
+		if os.path.isfile('./data_dump/usr_data/'+dat):
+			try:
+				f = h5py.File('./data_dump/usr_data/{}'.format(dat))
+				return_me.append('Approx={}, Force={}, Bodies={}, dt={}, Total Time={}'.format \
+					(f.attrs['approximation'],f.attrs['force'],f.attrs['bodies'], \
+						f.attrs['dt'],f.attrs['total_time']) \
+				)
+			except:
+				os.system('rm ./data_dump/usr_data/{}'.format(dat))
+	return return_me
+
 class gui:
-
-	# col_length = 
-	# row_length = 
-
-	"""docstring for gui"""
+	"""gui class contains all methods and variables needed for all GUIs.
+		GUIs include the main GUI, delete data GUI, and select premade 
+		initial conditions (not yet implimented)."""
 	def __init__(self):
 		super(gui, self).__init__()
 
@@ -126,35 +301,16 @@ class gui:
 			self.existing_data_frame.columnconfigure(i, weight=1)
 			self.existing_data_frame.rowconfigure(i, weight=1)
 
-	#option == 0 -> return total size
-	#option == 1 -> return list of data and sizes
-	def get_size(self,start_path = '.',option=0):
-		if option == 0:
-			return_me = 0
-		elif option == 1:
-			return_me = []
-		else:
-			print('Error: option {} not recognized'.format(option))
-			return
-
-		for dirpath, dirnames, filenames in os.walk(start_path):
-			for f in filenames:
-				fp = os.path.join(dirpath, f)
-				# skip if it is symbolic link
-				if not os.path.islink(fp):
-					if option == 0:
-						return_me += os.path.getsize(fp)
-					elif option == 1:
-						return_me.append([f,os.path.getsize(fp)])
-		return return_me
-
+	
+	#Controls the Label in the main GUI that displays how much 
+	#	user data is currently being stored
 	def set_data_amount(self):
 		string1 = 'Storing '
 		string2 = ' of saved data'
 
 		directory = os.getcwd() + '/data_dump/'
 		# data = sum(os.path.getsize(f) for f in os.listdir(directory) if os.path.isfile(f))
-		data = float(self.get_size(directory))
+		data = float(get_size(start_path=directory))
 		count = 0
 		while data > 1000:
 			data = data / 1000
@@ -164,14 +320,17 @@ class gui:
 		if count == 1:
 			size = 'KB'
 		elif count == 2:
-			size = 'GB'
+			size = 'MB'
 		elif count == 3:
+			size = 'GB'
+		elif count == 4:
 			size = 'TB'
 			
 
 
 		self.used_data_text.set(string1 + '{:.2f}'.format(data) + size + string2) 
 
+	#makes the message frame
 	def make_message_frame(self):
 		#set up message frame
 		master_ = self.frm_display_message
@@ -186,7 +345,7 @@ class gui:
 		self.lbl_message_display_message.grid(row=0,column=1,columnspan=1,padx=5, \
 			pady=5, sticky='NSEW')
 		
-
+	#makes the frame the graph will be displayed in
 	def make_graph_frame(self):
 		#set up graph's frame
 		master_ = self.frm_graph
@@ -200,6 +359,7 @@ class gui:
 		self.fg_width = self.frm_graph.winfo_width()
 		self.fg_height = self.frm_graph.winfo_height()
 
+	#makes the frames the user will interact with
 	def make_input_frame(self):
 		self.frm_p_input = tk.Frame(master=self.frm_input, \
 			bg="yellow", relief=tk.RIDGE, borderwidth=5)
@@ -221,6 +381,7 @@ class gui:
 		self.frm_run_sim.grid(row=3,column=0,columnspan=1,rowspan=1, \
 			padx=0,pady=0,sticky='NSEW')
 
+		#make all individual user interaction frames
 		self.make_p_input_frame()
 		self.make_var_input_frame()
 		self.make_get_existing_data_frame()
@@ -229,6 +390,7 @@ class gui:
 		self.fi_width = self.frm_input.winfo_width()
 		self.fi_height = self.frm_input.winfo_height()
 
+	#makes the frame with the run button
 	def make_run_sim_frame(self):
 		master_ = self.frm_run_sim
 		self.btn_run = tk.Button(master=master_, text='Run Sim')
@@ -251,7 +413,7 @@ class gui:
 		master_.grid_columnconfigure(0, weight=1)
 		master_.grid_columnconfigure(4, weight=1)
 
-
+	#makes the easy user input frame
 	def make_p_input_frame(self):
 		#set up input frame 
 		master_ = self.frm_p_input
@@ -307,6 +469,7 @@ class gui:
 			command=self.planet_checkbx_ck)
 		self.planet_checkbx.grid(row=2,column=2,columnspan=2,rowspan=1,padx=1,pady=7)
 		
+	#makes the frame that accepts individual body variables as user input
 	def make_var_input_frame(self):
 		master_ = self.frm_variable_input
 		#If user wants to input initial conditions of every body
@@ -380,7 +543,8 @@ class gui:
 			sticky='NSEW')
 
 		
-
+	#makes the frame where the user can select their already
+	#	made data
 	def make_get_existing_data_frame(self):
 		master_ = self.existing_data_frame
 		#make widgets to get existing data
@@ -406,7 +570,7 @@ class gui:
 			padx=1,pady=7,sticky='NSEW')
 		# self.get_data_menu_items.append(self.lbl_get_data_prompt)
 
-		self.existing_data = self.get_existing_data()
+		self.existing_data = get_existing_data()
 		self.data_option = tk.StringVar(master=master_)
 		if len(self.existing_data) == 0:
 			self.existing_data.append('No Previously Saved Data')
@@ -428,6 +592,7 @@ class gui:
 		self.able(master_,'disable',["Checkbutton"],dictionary)
 		# self.get_data_menu_items.append(self.ent_data_input)
 
+	#makes the delete data GUI
 	def make_delete_list_frame(self):
 
 		if self.frm_delete_list != -1:
@@ -460,11 +625,13 @@ class gui:
 		self.data_labels = []
 		j = 0
 		i = 0
-		self.data_sizes = []#self.get_size(os.getcwd()+'/data_dump/',option = 1)
-		for i,data in enumerate(self.get_existing_data()):
-			data = data.replace(' ','')
+		self.data_sizes = []#get_size(os.getcwd()+'/data_dump/',option = 1)
+		for i,data in enumerate(get_existing_data()):
+			data = data.replace(', ',',')
+			data = data.replace('Total Time','TotalTime')
+
 			
-			dat_num = self.get_data_num_single_str(data)
+			dat_num = get_data_num_single_str(data)
 			self.data_sizes.append(os.path.getsize(os.getcwd()+'/data_dump/usr_data/data_{}.hdf5'.format(dat_num)))
 			self.check_buttons_ints.append(tk.IntVar())
 			self.check_buttons.append(tk.Checkbutton(master=scrollable_frame,text=data, \
@@ -485,7 +652,13 @@ class gui:
 		master_.rowconfigure(1,weight=1)
 		master_.columnconfigure(1,weight=1)
 
+	#TODO
+	#If user selects the "relativity" checkbox
+	def relativity_checkbx_ck(self):
+		return
 
+	#what happens if the user checks the "Use existing data" checkbox
+	#	function ables and disables applicable GUI widgets
 	def existing_data_checkbx_ck(self):
 		dictionary = dict()
 		dictionary['Label'] = 1
@@ -503,9 +676,8 @@ class gui:
 		dictionary['Button'] = 1
 		self.able(self.existing_data_frame,mo_o,["Checkbutton"],dictionary)
 
-	def relativity_checkbx_ck(self):
-		return 
-
+	#If user wants to use planet initial conditions.
+	#	function ables and disables applicable GUI widgets
 	def planet_checkbx_ck(self):
 		mo = 'disabled'
 		if not self.planet_bool.get():
@@ -517,90 +689,25 @@ class gui:
 		self.able(self.frm_variable_input,mo)
 		self.able(self.existing_data_frame,mo,[''],dictionary)
 
-	def get_existing_data(self):
-		return_me = []
-		for dat in os.listdir('./data_dump/usr_data/'):
-			if os.path.isfile('./data_dump/usr_data/'+dat):
-				try:
-					f = h5py.File('./data_dump/usr_data/{}'.format(dat))
-					return_me.append('Approx={}, Force={}, Bodies={}, dt={}, Total Time={}'.format \
-						(f.attrs['approximation'],f.attrs['force'],f.attrs['bodies'], \
-							f.attrs['dt'],f.attrs['total_time']) \
-					)
-				except:
-					os.system('rm ./data_dump/usr_data/{}'.format(dat))
-		return return_me
+	
 
-	def get_data_num(self,bodies,force,approx,delta_t,total_t):
-		for dat in os.listdir('./data_dump/usr_data/'):
-			f = h5py.File('./data_dump/usr_data/{}'.format(dat))
-			if f.attrs['approximation'] == approx and f.attrs['force'] == force:
-				if f.attrs['bodies'] == int(bodies) and f.attrs['dt'] == float(delta_t) and f.attrs['total_time'] == float(total_t):
-					return dat.split('_')[-1].split('.')[0]	
-		return -1
-
-	def get_data_num_single_str(self,data):
-		for att in data.split(','):
-			if 'Approx=' in att:
-				approx = att.strip('Approx=')
-			elif 'Force=' in att:
-				force = att.strip('Force=')
-			elif 'Bodies=' in att:
-				bodies = int(att.strip('Bodies='))
-			elif 'dt=' in att:
-				dt = float(att.strip('dt='))
-			elif 'TotalTime=' in att:
-				tot_time = float(att.strip('TotalTime='))
-		for dat in os.listdir('./data_dump/usr_data/'):
-			f = h5py.File('./data_dump/usr_data/{}'.format(dat))
-			if f.attrs['approximation'] == approx and f.attrs['force'] == force:
-				if f.attrs['bodies'] == int(bodies) and f.attrs['dt'] == float(dt) and f.attrs['total_time'] == float(tot_time):
-					return dat.split('_')[-1].split('.')[0]	
-		return -1			
+		
 		
 
-	def get_data(self,data_num,max_frames, dim=3, option=0):
 
-		data_name = 'data_' + str(data_num) + '.hdf5'
-		try:
-			f = h5py.File('data_dump/usr_data/{}'.format(data_name), 'r')
-		except:
-			return [-1,-1,-1,-1]
-		# os.system('h5dump -H data_dump/data_{}.hdf5'.format(data_num))
-		total_iter = f.attrs['iterations']
-		bodies = f.attrs['bodies']
-		radii = f.attrs['radii']
-		names = []
-		if option == 0:
-			names = f.attrs['names']
 
-		if max_frames < total_iter:
-			skip = int(np.ceil(total_iter/max_frames))
-			frames = max_frames
-		else:
-			skip = 1
-			frames = total_iter
 
-		return_me = np.empty((bodies,dim, frames))#[[],[],[]]
-		# f = h5py.File(data_name, 'r')
-		# print(f['position_data'][:10,:,:])
-		ind = 0
-		for j in range(0,total_iter,skip):
-			return_me[:, :, ind] = f['position_data'][j,:,:]
-			ind += 1
+	#this method returns the bodies attribute
+	# def get_bodies(self):
+	# 	f = h5py.File(d.data_name, 'r')
+	# 	return f.attrs['bodies']
 
-		while ind < frames:
-			return_me[:, :, ind] = f['position_data'][j,:,:]
-			ind += 1
-		return return_me, names, total_iter, radii
-
-	def get_bodies(self):
-		f = h5py.File(d.data_name, 'r')
-		return f.attrs['bodies']
-
+	#given body radii this function returns the proportional graph
+	#	markersizes
 	def radii_to_markersize(self,radii):
 		return radii*62775.3611135
 
+	#updates the lines of the sim for the animations
 	def update_lines(self, num, dataLines, lines):
 		for line, data in zip(lines, dataLines):
 			# NOTE: there is no .set_data() for 3 dim data...
@@ -608,6 +715,8 @@ class gui:
 			line.set_3d_properties(data[2, :num])
 		return lines
 
+	#TODO
+	#runs the progress bar during loading
 	def run_prog_bar(self,const):
 		t0 = time.time()
 		self.prog_bar.pack(padx=10,pady=10)
@@ -638,17 +747,19 @@ class gui:
 	# 	constant = ((bodies*iterations)/10000)**2
 	# 	self.run_prog_bar(bar,constant)
 
+	#given all args as a single string this function makes the data
+	#	and displays the animation on the graph
 	def make_graph(self,argumentsv):
 		approx = ['central','many-body']
 		forces = ['grav']#,'em']
 		# Attaching 3D axis to the figure
-		requested_num_planets = np.nan
+		requested_bodies = ''
 		requested_approx = -1
 		requested_force = -1
 		for i in argumentsv:
 			if 'num_planets=' in i:
 				try:
-					requested_num_planets = int(i.strip('num_planets='))
+					requested_bodies = i.strip('num_planets=')
 				except:
 					print("error: in setting num_planets. Could not cast to int")
 					return -1
@@ -676,21 +787,21 @@ class gui:
 					print("error: in setting total time")
 
 
-		if np.isnan(requested_num_planets):
-			requested_num_planets = 2
+		if len(requested_bodies) == 0:
+			requested_bodies = [0,1]
 		if requested_force == -1:
 			requested_force = 'grav'
 		if requested_approx == -1:
 			requested_approx = 'central'
 
-		if isinstance(requested_num_planets, int):
-			if requested_num_planets < 0 or requested_num_planets > 10:
+		if isinstance(requested_bodies, int):
+			if requested_bodies < 0 or requested_bodies > 10:
 				print('Requested number of planets not supported. Please set a value from 1 to {}.'.format(d.max_solar_system_bodies))
 				return -1
-		elif isinstance(requested_num_planets, list):
+		elif isinstance(requested_bodies, list):
 			if requested_approx == 'central' or requested_approx == 'many-body':
-				if len(requested_num_planets) > d.max_solar_system_bodies:
-					print("Requested number of bodies ({}) not supported. Please enter a number from 1 to {} or a list of indices to include with maximum length of {}".format(requested_num_planets,d.max_solar_system_bodies,d.max_solar_system_bodies))
+				if len(requested_bodies) > d.max_solar_system_bodies:
+					print("Requested number of bodies ({}) not supported. Please enter a number from 1 to {} or a list of indices to include with maximum length of {}".format(requested_bodies,d.max_solar_system_bodies,d.max_solar_system_bodies))
 					return -1
 
 		if requested_approx not in approx:
@@ -708,21 +819,13 @@ class gui:
 			while self.loading_thread.is_alive():
 				time.sleep(0.1)
 			self.set_data_amount()
-			self.update_menu(self.get_existing_data(),self.ent_data_input,self.data_option)
+			self.update_menu(get_existing_data(),self.ent_data_input,self.data_option)
 		# else:
 
-		dat_num = self.get_data_num(requested_num_planets,requested_force,requested_approx,requested_dt,requested_tt)
-		# data,nombre,total_iter,radii = get_data(requested_force,requested_approx,requested_num_planets,max_frames=50000,dim=3)
-		# print(dat_num)
-		data,nombre,total_iter,radii = self.get_data(data_num=dat_num,max_frames=50000,dim=3)
-		# data = get_data(total_iter,50000,bodies,3)
-		# self.data = data_
-		# self.nombre = nombre_
-		# self.total_iter = total_iter_
-		# self.radii = radii_
-		# signal.signal(signal.SIGUSR1, self.recieve_signal)
-		# print('in make_graph: {}'.format(data.shape))
-		# print(data.sum())
+		dat_num = get_data_num(list_from_string(requested_bodies),requested_force,requested_approx,requested_dt,requested_tt)
+		# data,nombre,total_iter,radii = get_data(requested_force,requested_approx,requested_bodies,max_frames=50000,dim=3)
+		data,nombre,total_iter,radii = get_data(data_num=dat_num,max_frames=50000,dim=3)
+
 		try:
 			self.ax.clear()
 			# self.fig.legend([])
@@ -734,7 +837,7 @@ class gui:
 		# Creating "iterations" line objects.
 		# NOTE: Can't pass empty arrays into 3d version of plot()
 		lines = []#np.zeros((len(data)),dtype=Line3D)
-		marker_sizes = np.full((requested_num_planets),10)
+		marker_sizes = np.full((len(requested_bodies)),10)
 
 		# marker_sizes = radii_to_markersize(radii)
 		# marker_sizes[0] = 40
@@ -775,6 +878,7 @@ class gui:
 
 		self.fig.canvas.draw()
 		# graph_canvas = FigureCanvasTkAgg(fig, master=frm_graph)
+
 		self.graph_canvas.get_tk_widget().grid(row=0,column=0,sticky='NSEW')
 		# self.graph_canvas.columnconfigure(0,weight=1)
 		# self.graph_canvas.rowconfigure(0,weight=1)
@@ -783,38 +887,42 @@ class gui:
 
 		# results = [data,nombre,total_iter,radii]
 
+	#what happens if the user clicks
+	# def handle_get_data_click(self,event):
+	# 	self.reset_message()
+	# 	if self.get_data_text.get() == 'Make New Data':
+	# 		self.get_data_text.set('Get Saved Data')
+	# 		# if get_data_menu_bool:
+	# 		self.unpack_widgets(self.get_data_menu_items)
+	# 			# get_data_menu_bool = False
+	# 		# if not make_data_menu_bool:
+	# 		self.grid_widgets(self.make_data_menu_items)
+	# 		if self.planet_data_or_not_text.get() == 'Use Solar System Variables':
+	# 			self.grid_widgets(self.input_variable_items)
+	# 		self.btn_add_body.pack()
+	# 			# make_data_menu_bool = True
+	# 	else:
+	# 		self.get_data_text.set('Make New Data')
 
-	def handle_get_data_click(self,event):
-		self.reset_message()
-		if self.get_data_text.get() == 'Make New Data':
-			self.get_data_text.set('Get Saved Data')
-			# if get_data_menu_bool:
-			self.unpack_widgets(self.get_data_menu_items)
-				# get_data_menu_bool = False
-			# if not make_data_menu_bool:
-			self.grid_widgets(self.make_data_menu_items)
-			if self.planet_data_or_not_text.get() == 'Use Solar System Variables':
-				self.grid_widgets(self.input_variable_items)
-			self.btn_add_body.pack()
-				# make_data_menu_bool = True
-		else:
-			self.get_data_text.set('Make New Data')
+	# 		# if make_data_menu_bool:
+	# 		self.ungrid_widgets(self.make_data_menu_items)
+	# 		self.ungrid_widgets(self.input_variable_items)
+	# 		self.btn_add_body.pack_forget()
+	# 			# make_data_menu_bool = False
+	# 		# if not get_data_menu_bool:	
+	# 		self.pack_widgets(self.get_data_menu_items)
+	# 			# get_data_menu_bool = True
+	#	 	self.window.update_idletasks()
 
-			# if make_data_menu_bool:
-			self.ungrid_widgets(self.make_data_menu_items)
-			self.ungrid_widgets(self.input_variable_items)
-			self.btn_add_body.pack_forget()
-				# make_data_menu_bool = False
-			# if not get_data_menu_bool:	
-			self.pack_widgets(self.get_data_menu_items)
-				# get_data_menu_bool = True
-		self.window.update_idletasks()
 
+	#deletes any extraneous data still in ftp folder and destroys 
+	#	main GUI window
 	def handle_exit_click(self,event):
-		# if not self.data_wrote:
-		# 	self.sim.write_datas()
+		if len(os.listdir('./data_dump/ftp/')) > 0:
+			os.system('rm ./data_dump/ftp/*')
 		self.window.destroy()
 
+	#What happens when the user clicks the "Run Sim" button
 	def handle_run_click(self,event):
 		# self.reset_message()
 		# lbl_status_value.delete("1.0",tk.END)
@@ -845,6 +953,8 @@ class gui:
 			except ValueError:
 				error_msg += 'Error: Please enter a value for total time\n'
 			
+
+
 			approx = self.approx_option.get()
 			if approx == 'Central Force':
 				app = True
@@ -861,6 +971,8 @@ class gui:
 				force = 'em'
 			arguments['force_'] = force
 			# self.data_wrote = False
+
+
 			
 			if (len(self.input_variable_x_variables) == 0 or len(self.input_variable_o_variables) == 0) and self.planet_bool.get() == 0:
 				error_msg += 'Error: Please enter initial conditions manualy or select "Use Planet IC" (planet initial conditions)\n'
@@ -868,18 +980,21 @@ class gui:
 				arguments['initial_cond_'] = self.input_variable_x_variables
 				arguments['other_data_'] = self.input_variable_o_variables
 				# bodies = len(self.input_variable_x_variables)
-				bodies = int(self.num_bodies.get())
+				
+				bodies = list_from_string(self.num_bodies.get())
 				arguments['bodies_'] = bodies
 
 			if self.planet_bool.get() == 0:
 				arguments['names_'] = self.input_variable_names
 				arguments['mode_'] = 'custom'
+				if len(self.num_bodies.get()) == 0:
+					error_msg += 'Warning: Please enter a value for bodies in Python list format, or enter initial conditions manually.'
 
 			else:	
 				if self.num_bodies.get() == '':
 					error_msg += 'Error: Please enter a number of bodies from 2-9\n'
 				else:
-					bodies = int(self.num_bodies.get())
+					bodies = list_from_string(self.num_bodies.get())
 				arguments['names_'] = []
 				arguments['mode_'] = 'planetary'
 				arguments['bodies_'] = bodies
@@ -889,7 +1004,7 @@ class gui:
 			# self.prog_bar_thread.start()
 			if len(error_msg) == 0:
 				self.loading_thread = threading.Thread(group=None,target=d.numerics, \
-					name=None,args=(arguments,), daemon=True)
+					name=None,args=(arguments,), daemon=False)
 				# self.run_prog_bar(10)
 				self.loading_thread.start()
 
@@ -898,7 +1013,7 @@ class gui:
 			opts = self.data_option.get().split(',')
 			approx = opts[0].split('=')[1]
 			force = opts[1].split('=')[1]
-			bodies = int(opts[2].split('=')[1])
+			bodies = list_from_string(opts[2].split('=')[1])
 			use_dt = float(opts[3].split('=')[1])
 			use_tt = float(opts[4].split('=')[1])
 			if approx == "Central Force":
@@ -920,8 +1035,11 @@ class gui:
 		else:
 			self.lbl_message.set(error_msg[:-1])
 
+		os.system("rm ./data_dump/ftp/*")
 
 
+	#what happens when the user clicks the "Add Body" button.
+	#	errors if user input is not in right form or missing
 	def handle_add_body_click(self,event):
 		error_msg = ''
 		try:
@@ -980,14 +1098,16 @@ class gui:
 		else:
 			self.lbl_message.set(error_msg[:-1])
 
+	#makes the delete data GUI when the "Delete Saved Data" button is pressed
 	def handle_delete_btn_click(self,event):
-
 		for index,value in enumerate(self.check_buttons):
 			if self.check_buttons_ints[index].get() or self.delete_all_ck_btn.get():
-				os.system('rm ./data_dump/usr_data/data_{}.hdf5'.format(self.get_data_num_single_str(value['text'])))
+				os.system('rm ./data_dump/usr_data/data_{}.hdf5'.format(get_data_num_single_str(value['text'])))
 		self.make_delete_list_frame()
 		self.set_data_amount()
 
+	#what happens when the "Delete" button is pressed from the 
+	#	Delete Data GUI
 	def handle_delete_data_click(self,event):
 		self.delete_data_window = tk.Toplevel(self.window)
 		self.delete_data_window.title('Delete Data')
@@ -1009,7 +1129,7 @@ class gui:
 
 		self.make_delete_list_frame()
 		
-		# self.data_list = self.get_existing_data()
+		# self.data_list = get_existing_data()
 
 		# master_.rowconfigure(0,weight=0)
 		# master_.rowconfigure(1,weight=0)
@@ -1020,6 +1140,7 @@ class gui:
 		master_.columnconfigure(1,weight=1)
 		# master_.columnconfigure(2,weight=0)	
 
+	#updates the existing data dropdown menu when user data changes
 	def update_menu(self,new_menu,update_me,update_option):
 		menu = update_me["menu"]
 		menu.delete(0, "end")
@@ -1029,6 +1150,12 @@ class gui:
 		if len(new_menu) > 0:
 			update_option.set(new_menu[0])
 
+	#Enables and disables widgets in a certain frame
+	#exceptions is a list of widget types (as strings) that should not be 
+	#	enabled or disables
+	#numbered_exceptions is a dictionary where the keys are the widget type
+	#	and the value is the number of this type of widget before that
+	#	type of widget gets disabled
 	#mode = 'normal' -> enable children
 	#mode = 'disable' -> disable children
 	def able(self,frame,mode='normal',exceptions=[""],numbered_exceptions=[""]):
